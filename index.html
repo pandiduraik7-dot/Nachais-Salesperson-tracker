@@ -90,7 +90,7 @@ const defaultData=()=>({
  attendance:[],visits:[],visitPurposes:['Order Generation','Payment Collection','Relationship Building / Follow-Up'],attendanceRequests:[]
 });
 // ---- Supabase config: replace with your own project's values ----
-const SUPABASE_URL='https://kytdnyoqflwmxmpoqjev.supabase.co/rest/v1/';
+const SUPABASE_URL='https://kytdnyoqflwmxmpoqjev.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5dGRueW9xZmx3bXhtcG9xamV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyMTUxNzksImV4cCI6MjEwNzc5MTE3OX0.xcHZG5UJ-eB6NZuPDQ2MPyUHPf_z2ib6jKulZV08kbY';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const DATA_ROW_ID=1; // single shared row holding the whole app's data as JSON
