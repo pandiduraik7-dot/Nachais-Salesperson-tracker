@@ -629,8 +629,29 @@ function loadLogo(){/* The supplied logo can be embedded here by selecting the i
  $('showForgot').onclick=()=>{$('forgotPanel').classList.toggle('hidden');$('registerPanel').classList.add('hidden')};
  $('forgotForm').addEventListener('submit',e=>{e.preventDefault();let email=$('forgotEmail').value.trim().toLowerCase(),emp=$('forgotEmployeeId').value.trim().toUpperCase(),pw=$('forgotPassword').value,confirm=$('forgotConfirm').value,p=data.salespeople.find(x=>x.id===emp&&x.email.toLowerCase()===email);if(!p||!p.active||!p.account){toast('Could not verify an active registered account. Contact Sales Operations.');return}if(pw.length<6||pw!==confirm){toast('Passwords must match and contain at least 6 characters.');return}p.account.password=pw;save();$('forgotForm').reset();$('forgotPanel').classList.add('hidden');$('loginEmail').value=email;toast('Password updated. Sign in using your new password.')});
  $('registerForm').addEventListener('submit',e=>{e.preventDefault();let email=$('regEmail').value.trim().toLowerCase(),emp=$('regEmployeeId').value.trim().toUpperCase(),pw=$('regPassword').value,confirm=$('regConfirm').value,p=data.salespeople.find(x=>x.id===emp&&x.email.toLowerCase()===email);if(!p||!p.active){toast('Your details are not registered. Contact Sales Operations to create an active employee record.');return}if(p.account){toast('An account already exists. Please log in using your registered credentials.');return}if(pw.length<6||pw!==confirm){toast('Passwords must match and contain at least 6 characters.');return}p.account={password:pw,createdAt:todayISO()};save();$('loginEmail').value=email;$('loginPassword').value='';$('registerForm').reset();$('registerPanel').classList.add('hidden');toast('Account created. You can now sign in.');});
- $('logoutBtn').onclick=$('topLogout').onclick=()=>{currentUser=null;$('app').classList.add('hidden');$('loginScreen').classList.remove('hidden');$('loginPassword').value='';$('sidebar').classList.remove('open')};
- const mobileMenu = $('mobileMenu'); const sidebar = $('sidebar');  mobileMenu.onclick = () => {   const isOpen = sidebar.classList.toggle('open');    mobileMenu.setAttribute('aria-expanded', String(isOpen));   mobileMenu.setAttribute(     'aria-label',     isOpen ? 'Close navigation menu' : 'Open navigation menu'   );    mobileMenu.textContent = isOpen ? '✕' : '⋮'; };
+ $('logoutBtn').onclick = $('topLogout').onclick = () => {
+  currentUser = null;
+  $('app').classList.add('hidden');
+  $('loginScreen').classList.remove('hidden');
+  $('loginPassword').value = '';
+  $('sidebar').classList.remove('open');
+  $('mobileMenu').textContent = '⋮';
+  $('mobileMenu').setAttribute('aria-expanded', 'false');
+  $('mobileMenu').setAttribute('aria-label', 'Open navigation menu');
+};
+
+const mobileMenu = $('mobileMenu');
+const sidebar = $('sidebar');
+
+mobileMenu.onclick = () => {
+  const isOpen = sidebar.classList.toggle('open');
+  mobileMenu.textContent = isOpen ? '✕' : '⋮';
+  mobileMenu.setAttribute('aria-expanded', String(isOpen));
+  mobileMenu.setAttribute(
+    'aria-label',
+    isOpen ? 'Close navigation menu' : 'Open navigation menu'
+  );
+};
  setInterval(()=>{let el=$('liveClock');if(el)el.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})},1000);
  renderNav();
  $('bootLoading').remove();
