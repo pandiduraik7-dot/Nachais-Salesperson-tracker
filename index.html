@@ -5,7 +5,7 @@
 <title>NACHIAS | Sales CRM Portal</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script> <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--navy:#292d91;--blue:#3b3f9f;--ink:#24263b;--muted:#6f7896;--line:#e0e5f3;--bg:#f5f6fb;--white:#fff;--green:#3d6e59;--greenbg:#edf3ef;--orange:#8b6b40;--orangebg:#f5f0e8;--red:#9d4e58;--redbg:#f7edef;--purplebg:#eeeffa;--shadow:0 4px 15px #252b8309}
 *{box-sizing:border-box}body{margin:0;font-family:Calibri,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink)}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}.muted{color:var(--muted)}.small{font-size:12px}.btn{border:1px solid transparent;border-radius:10px;padding:10px 14px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:7px}.primary{background:var(--navy);color:#fff}.outline{background:#fff;border-color:#d6dcef;color:var(--navy)}.soft{background:var(--purplebg);color:var(--navy)}.danger{background:var(--redbg);color:var(--red)}.sm{padding:7px 10px;font-size:12px}.full{width:100%}.brand{display:flex;align-items:center;gap:11px;color:var(--navy);font-size:21px;font-weight:850}.logo{width:43px;height:43px;object-fit:contain;border-radius:50%;background:#fff}.brand-mark{width:43px;height:43px;border-radius:13px;background:var(--navy);color:white;display:grid;place-items:center;font-weight:900}.login-wrap{min-height:100vh;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 20% 15%,#e3e6ff,transparent 34%),linear-gradient(135deg,#f8f9ff,#edf0fb)}.login-card{width:min(450px,100%);background:#fff;border:1px solid var(--line);border-radius:23px;padding:32px;box-shadow:0 20px 65px #252b8317}.login-card h1{margin:26px 0 5px;font-size:27px}.login-card p{color:var(--muted);line-height:1.5}.field{display:flex;flex-direction:column;gap:7px;margin:13px 0}.field label{font-size:12px;font-weight:800;color:#5c6481}.field input,.field select,.field textarea,.toolbar input,.toolbar select{width:100%;border:1px solid #d9def0;background:white;border-radius:9px;padding:10px 11px;outline:none;color:var(--ink)}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #4549b81a}.login-foot{border-top:1px solid var(--line);padding-top:14px;margin-top:18px;color:var(--muted);font-size:11px;line-height:1.6}.link{border:0;background:none;color:var(--navy);font-weight:800;padding:8px 0}.app{display:flex;min-height:100vh}.sidebar{width:248px;flex-shrink:0;background:#111;border-right:1px solid #292929;color:#fff;padding:20px 13px;display:flex;flex-direction:column}.sidebar .brand{padding:0 10px 23px}.nav-label{padding:13px 13px 7px;color:#aaa;text-transform:uppercase;font-size:10px;letter-spacing:1px;font-weight:850}.nav{border:0;background:transparent;color:#ddd;padding:11px 13px;border-radius:10px;text-align:left;width:100%;font-weight:700;display:flex;gap:11px;align-items:center;margin:2px 0}.nav:hover,.nav.active{background:#fff;color:#111}.nav .ico{width:20px;text-align:center}.side-bottom{margin-top:auto;border-top:1px solid #333;padding:15px 10px 0}.sidebar .name{color:#fff}.sidebar .sub{color:#bbb}.sidebar .btn.outline{background:#111;border-color:#666;color:#fff}.sidebar .brand span{color:#fff}.user-mini{display:flex;align-items:center;gap:10px;margin-bottom:12px}.avatar{width:36px;height:36px;border-radius:50%;background:#e9eaff;color:var(--navy);display:grid;place-items:center;font-size:12px;font-weight:900;flex-shrink:0}.main{flex:1;min-width:0}.topbar{height:74px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;gap:15px}.top-title{font-size:20px;font-weight:850;color:var(--navy)}.top-right{display:flex;align-items:center;gap:10px}.content{padding:25px 28px 42px;max-width:1600px;margin:auto}.heading{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:20px}.heading h1{margin:0 0 5px;font-size:25px;color:var(--navy)}.heading p{margin:0;color:var(--muted);font-size:13px}.actions{display:flex;gap:8px;flex-wrap:wrap}.grid{display:grid;gap:15px}.metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:18px}.metric{background:#fff;border:1px solid var(--line);border-radius:15px;padding:18px 19px;box-shadow:var(--shadow);position:relative;overflow:hidden}.metric:before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:#a8b9eb}.metric.greenline:before{background:#5dd38c}.metric.orangeline:before{background:#ffb36b}.metric.redline:before{background:#fa8c94}.metric-label{font-size:11px;color:#737b97;font-weight:850;text-transform:uppercase;letter-spacing:.55px}.metric-value{font-size:30px;font-weight:900;color:var(--navy);margin:7px 0 2px;letter-spacing:-.7px}.metric-note{font-size:12px;color:var(--muted)}.panel{background:#fff;border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);margin-bottom:17px;min-width:0}.panel-head{padding:17px 19px;border-bottom:1px solid #edf0f8;display:flex;align-items:center;justify-content:space-between;gap:12px}.panel-head h2{font-size:15px;margin:0;color:var(--navy)}.panel-body{padding:18px 19px}.two-col{grid-template-columns:1.15fr .85fr}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.toolbar input,.toolbar select{width:auto;min-width:130px;padding:9px 10px;font-size:12px}.toolbar .search{min-width:190px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th{text-align:left;background:#f8f9fe;color:#737b97;text-transform:uppercase;font-size:10px;letter-spacing:.55px;padding:12px 13px;border-bottom:1px solid var(--line)}td{padding:12px 13px;border-bottom:1px solid #edf0f8;font-size:12px}tbody tr:hover{background:#fafbff}tbody tr:last-child td{border-bottom:0}.person{display:flex;align-items:center;gap:9px}.person .avatar{width:31px;height:31px}.name{font-weight:800}.sub{font-size:10px;color:var(--muted);margin-top:2px}.pill{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:99px;font-size:10px;font-weight:850;white-space:nowrap}.pill.green{background:var(--greenbg);color:var(--green)}.pill.orange{background:var(--orangebg);color:var(--orange)}.pill.red{background:var(--redbg);color:var(--red)}.pill.blue{background:var(--purplebg);color:var(--navy)}.notice{background:#f0f2ff;color:#4249a3;padding:12px 14px;border-radius:11px;font-size:12px;line-height:1.5;margin-bottom:15px}.bar-list{display:flex;flex-direction:column;gap:15px}.bar-row{display:grid;grid-template-columns:90px 1fr 28px;gap:10px;align-items:center;font-size:12px}.bar-track{height:10px;border-radius:99px;background:#eef0fa;overflow:hidden}.bar-fill{height:100%;background:linear-gradient(90deg,#3739a7,#7c83ed);border-radius:99px}.clock-card{display:grid;grid-template-columns:.8fr 1.2fr;gap:25px;padding:26px}.clock-left{border-right:1px solid var(--line);padding-right:24px}.clock-time{font-size:clamp(34px,4vw,53px);font-weight:900;color:var(--navy);letter-spacing:-1.4px}.clock-date{color:var(--muted);margin:4px 0 16px}.clock-right .hours{display:flex;justify-content:space-between;font-size:12px;font-weight:850;color:#68708d;margin-bottom:13px}.timeline{height:14px;border-radius:99px;background:#e5e8f5;position:relative;margin:25px 0 20px}.timeline-fill{position:absolute;left:9%;right:10%;height:100%;border-radius:99px;background:#c6cbe6}.timeline-now{position:absolute;top:-9px;width:3px;height:32px;background:#222743;left:23%}.time-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.time-stat{background:#f4f6fc;padding:13px;border-radius:11px}.time-stat span{display:block;font-size:10px;color:#707894;font-weight:850;letter-spacing:.5px}.time-stat strong{display:block;font-size:23px;color:var(--navy);margin:5px 0}.week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:17px}.day-chip{border:1px solid var(--line);border-radius:11px;text-align:center;padding:9px 3px;font-size:11px;color:var(--muted)}.day-chip strong{display:block;color:var(--ink);font-size:15px;margin:3px}.day-chip.selected{border:2px solid var(--blue);background:#f5f5ff}.day-chip .dot{display:block;width:8px;height:8px;background:#13a05a;border-radius:50%;margin:5px auto 0}.calendar-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.cal-weekday{text-align:center;color:#737b97;font-weight:850;font-size:11px;padding:7px}.cal-day{min-height:76px;border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff;cursor:pointer}.cal-day strong{display:block;font-size:15px}.cal-day .cal-status{margin-top:6px;font-size:10px;font-weight:750;line-height:1.35}.cal-times{font-size:10px;font-weight:700;color:#4f5876}.cal-day-state{font-size:10px;font-weight:900;color:var(--green)}.cal-day.present{background:#e5f6ec;border-color:#e5f6ec}.cal-day.present .cal-status{color:var(--green)}.cal-day.od{background:#eaf0ff;border-color:#eaf0ff}.cal-day.od .cal-status{color:#4169b2}.cal-day.late{background:#fff1e2;border-color:#fff1e2}.cal-day.late .cal-status{color:var(--orange)}.cal-day.missed{background:#fdebec;border-color:#fdebec}.cal-day.missed .cal-status{color:var(--red)}.cal-day.today{outline:2px solid var(--navy);outline-offset:-2px}.tabs{display:flex;gap:5px;background:#eef0fc;padding:5px;border-radius:11px}.tab{border:0;background:transparent;padding:8px 12px;border-radius:8px;font-weight:800;color:#4e5681}.tab.active{background:#fff;color:var(--navy);box-shadow:0 2px 5px #252b8310}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 15px}.span2{grid-column:1/-1}.modal-backdrop{position:fixed;inset:0;background:#171b3b70;display:grid;place-items:center;padding:18px;z-index:30}.modal{width:min(630px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:17px;box-shadow:0 30px 90px #10133344}.modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}.modal-head h2{margin:0;color:var(--navy);font-size:18px}.modal-body{padding:8px 22px 20px}.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid var(--line)}.profile-box{display:flex;align-items:center;gap:14px;padding:18px;background:#f7f8ff;border-radius:13px}.profile-box .avatar{width:54px;height:54px;font-size:17px}.empty{text-align:center;padding:30px;color:var(--muted)}.toast{position:fixed;right:20px;bottom:20px;background:#202653;color:white;padding:13px 17px;border-radius:11px;box-shadow:0 10px 30px #10133335;z-index:60;font-size:12px;max-width:350px}.mobile-menu{display:none}.footer-note{font-size:10px;color:#8a91a9;line-height:1.5;margin-top:15px}
@@ -15,7 +15,7 @@
 /* Monthly attendance matrix and compact black-and-white report presentation */
 .matrix-wrap{overflow-x:auto;max-width:100%}.attendance-matrix{border-collapse:collapse;min-width:max-content;font-size:12px}.attendance-matrix th,.attendance-matrix td{border:1px solid #d7dbe4;text-align:center;padding:7px 8px;white-space:nowrap}.attendance-matrix thead th{background:#e9ebf0;color:#202124;font-weight:700}.attendance-matrix th:nth-child(1),.attendance-matrix td.matrix-name{position:sticky;left:0;background:#fff;z-index:1;text-align:left;min-width:150px}.attendance-matrix th:nth-child(2){position:sticky;left:150px;z-index:2}.attendance-matrix td:nth-child(2){background:#fff}.attendance-matrix .matrix-present{background:#ededed;color:#111;font-weight:700}.attendance-matrix .matrix-submitted{background:#d9d9d9;color:#111;font-weight:700}.attendance-matrix .matrix-pending{background:#bdbdbd;color:#111;font-weight:700}.attendance-matrix .matrix-empty{color:#aaa}.legend-row{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#555;margin-bottom:12px}.legend-dot{display:inline-block;width:10px;height:10px;border:1px solid #aaa;margin-right:4px}.legend-dot.matrix-present{background:#ededed}.legend-dot.matrix-submitted{background:#d9d9d9}.legend-dot.matrix-pending{background:#bdbdbd}.filter-label{display:flex;align-items:center;gap:8px;font-size:13px;color:#555}.filter-label input{min-width:140px}.report-filters{align-items:end}.report-summary-line{padding:8px 0;border-bottom:1px solid #ddd;font-size:12px}.report-table{font-size:12px}.report-table td,.report-table th{padding:7px}
 
-.expense-section-label{font-weight:900;color:var(--navy);padding:9px 0;border-bottom:1px solid var(--line)}  .sales-calendar-day{min-height:115px;border:1px solid var(--line);border-radius:10px;padding:8px;background:#fff;cursor:pointer;overflow:hidden} .sales-calendar-day:hover{border-color:var(--navy);background:#fafaff} .sales-calendar-day.other-month{opacity:.4;background:#f8f8fa} .sales-calendar-day.today{outline:2px solid var(--navy);outline-offset:-2px} .sales-calendar-day-number{font-weight:900;font-size:13px;margin-bottom:7px} .sales-calendar-event{font-size:10px;font-weight:750;padding:4px 5px;border-radius:5px;margin:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#eeeffa;color:var(--navy)} .sales-calendar-event.exhibition{background:#eaf0ff;color:#345a9c} .sales-calendar-event.festival{background:#f5f0e8;color:#8b6b40} .sales-calendar-event.important-day{background:#edf3ef;color:#3d6e59} .sales-calendar-event.poster-campaign{background:#f7edef;color:#9d4e58} .sales-calendar-event.sales-visit{background:#e9f1f2;color:#35666a} .sales-calendar-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:12px 0} .sales-calendar-legend span{display:flex;align-items:center;gap:5px} .sales-calendar-dot{width:9px;height:9px;border-radius:3px;display:inline-block} .sales-calendar-list-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)} .sales-calendar-list-row:last-child{border-bottom:0} .sales-calendar-actions{display:flex;gap:6px;flex-wrap:wrap} @media(max-width:720px){.sales-calendar-day{min-height:85px;padding:5px}.sales-calendar-event{font-size:9px;padding:3px}.sales-calendar-list-row{align-items:flex-start;flex-direction:column}}  @media print{.no-print{display:none!important}}
+.expense-section-label{font-weight:900;color:var(--navy);padding:9px 0;border-bottom:1px solid var(--line)}@media print{.no-print{display:none!important}}
 </style>
 </head>
 <body>
@@ -102,8 +102,6 @@ const DATA_ROW_ID=1; // single shared row holding the whole app's data as JSON
 let data=null;
 let currentUser=null,currentPage='dashboard',selectedPerson=null,attendanceMonth=todayISO().slice(0,7),tripFilter={period:'month',zone:'all',person:'all',purpose:'all',search:''},calendarMonth=todayISO().slice(0,7);
 let saveTimer=null;
-let salesCalendarMonth=todayISO().slice(0,7);
-
 async function loadData(){
  try{
   const{data:row,error}=await sb.from('crm_data').select('payload').eq('id',DATA_ROW_ID).maybeSingle();
@@ -120,7 +118,6 @@ async function loadData(){
  data.attendanceRequests=data.attendanceRequests||[];
  data.travelPlans=data.travelPlans||[];
  data.expenseClaims=data.expenseClaims||[];
- data.salesCalendarEvents=data.salesCalendarEvents||[];
 }
 function save(){
  localStorage.setItem('naciasCRMData',JSON.stringify(data));
@@ -138,38 +135,10 @@ function isManagement(){return currentUser?.role==='management'}
 function myPerson(){return personById(currentUser?.personId)}
 function toast(msg){$('toastHost').innerHTML=`<div class="toast">${esc(msg)}</div>`;setTimeout(()=>$('toastHost').innerHTML='',3200)}
 function badge(text,type='blue'){return `<span class="pill ${type}">${esc(text)}</span>`}
-function statusBadge(s){return badge(s,s==='Present'?'green':s==='OD'?'blue':s==='Active'?'green':s==='Inactive'?'red':s==='Registered'?'green':s==='Registration Pending'?'orange':s==='New'?'orange':'blue')}function navConfig(){
- if(isManagement())return [
-  ['management','▦','Management Dashboard'],
-  ...managementZones().map((z,i)=>['mgmtzone:'+z,'▦',z]),
-  ['myaccount','⚙','Account Settings']
- ];
- return isOps()?[
-  ['dashboard','▦','Dashboard'],
-  ['followups','◴','Follow-up Reminders'],
-  ['team','♙','Sales Team'],
-  ['attendance','◷','Attendance'],
-  ['attrequests','✓','Attendance Requests'],
-  ['customers','▤','Customer Master'],
-  ['trips','⇢','Trip Sheets'],
-  ['travelplans','➤','Sales Travel Plans'],
-  ['salescalendar','▦','Sales Calendar'],
-  ['reports','▤','Reports'],
-  ['myaccount','⚙','Account Settings']
- ]:[
-  ['mydashboard','▦','My Dashboard'],
-  ['reminders','◴','Follow-up Reminders'],
-  ['mark','◷','Attendance'],
-  ['dailytrip','⇢','Daily Trip Sheet'],
-  ['travelplan','➤','My Travel Plan'],
-  ['mytrips','▥','My Visit History'],
-  ['mycustomers','♧','My Customers'],
-  ['expenses','₹','Expenses Tracker'],
-  ['salescalendar','▦','Sales Calendar'],
-  ['salesreports','▤','Reports'],
-  ['myaccount','⚙','My Account']
- ];
-}
+function statusBadge(s){return badge(s,s==='Present'?'green':s==='OD'?'blue':s==='Active'?'green':s==='Inactive'?'red':s==='Registered'?'green':s==='Registration Pending'?'orange':s==='New'?'orange':'blue')}
+function navConfig(){if(isManagement())return [['management','▦','Management Dashboard'],...managementZones().map((z,i)=>['mgmtzone:'+z,'▦',z]),['myaccount','⚙','Account Settings']];return isOps()?[
+ ['dashboard','▦','Dashboard'],['followups','◴','Follow-up Reminders'],['team','♙','Sales Team'],['attendance','◷','Attendance'],['attrequests','✓','Attendance Requests'],['customers','▤','Customer Master'],['trips','⇢','Trip Sheets'],['travelplans','➤','Sales Travel Plans'],['reports','▤','Reports'],['myaccount','⚙','Account Settings']
+]:[['mydashboard','▦','My Dashboard'],['reminders','◴','Follow-up Reminders'],['mark','◷','Attendance'],['dailytrip','⇢','Daily Trip Sheet'],['travelplan','➤','My Travel Plan'],['mytrips','▥','My Visit History'],['mycustomers','♧','My Customers'],['expenses','₹','Expenses Tracker'],['salesreports','▤','Reports'],['myaccount','⚙','My Account']]}
 function setUser(user, persist=true){
  currentUser=user;
  if(persist){try{localStorage.setItem('nachiasCRMLoginSession',JSON.stringify({role:user.role,email:user.email,personId:user.personId||null}));}catch(e){console.warn('Could not persist login session:',e)}}
@@ -196,205 +165,8 @@ function restoreLoginSession(){
  localStorage.removeItem('nachiasCRMLoginSession');return false;
 }
 function renderNav(){const items=navConfig();$('navItems').innerHTML=items.map(([key,ico,label])=>{if(key==='reminders'){const today=todayISO(),from=new Date(today+'T12:00:00'),to=new Date(today+'T12:00:00');from.setDate(from.getDate()-2);to.setDate(to.getDate()+2);const a=from.toISOString().slice(0,10),b=to.toISOString().slice(0,10),p=myPerson(),n=(data.visits||[]).filter(v=>v.personId===p?.id&&v.followUpDate&&v.followUpDate>=a&&v.followUpDate<=b).length;label+=` <span class="pill ${n?'orange':'blue'}">${n}</span>`}return `<button class="nav ${currentPage===key?'active':''}" data-page="${key}"><span class="ico">${ico}</span>${label}</button>`}).join('');$('navItems').querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{currentPage=b.dataset.page;$('sidebar').classList.remove('open');const menu=$('mobileMenu');if(menu){menu.textContent='⋮';menu.setAttribute('aria-expanded','false');menu.setAttribute('aria-label','Open navigation menu')}renderNav();renderPage()})}
-function renderPage(){  const zonePage=currentPage.startsWith('mgmtzone:')?decodeURIComponent(currentPage.slice('mgmtzone:'.length)):null;  const titles={   management:['Management Dashboard','Overall performance and zone-wise comparison across attendance, visits, orders, collections, and expenses'],   dashboard:['Dashboard','Sales team overview'],   followups:['Follow-up Reminders','Consolidated follow-up activity for all salespersons, with filters'],   team:['Sales Team','Manage salesperson records and zone assignments'],   accounts:['Account Management','Registration status and access'],   attendance:['Attendance','Team attendance by date and zone'],   attrequests:['Attendance Requests','Review and approve attendance regularization requests'],   customers:['Customer Master','Zone-wise customer records'],   trips:['Trip Sheets','Customer visit activity and trip records'],   travelplans:['Sales Travel Plans','Daily shop plans and execution status by salesperson'],   travelplan:['My Travel Plan','Review your planned shops and update visit outcomes'],   salescalendar:['Sales Calendar','Plan and track exhibitions, festivals, campaigns, important days and sales activities'],   reports:['Reports','Cumulative sales activity overview'],   mydashboard:['My Dashboard','Your daily attendance and field activity'],   reminders:['Follow-up Reminders','Due, missed, and upcoming customer follow-ups'],   mark:['Attendance','Clock in and review your monthly attendance calendar'],   dailytrip:['Daily Trip Sheet','Record multiple customer visits'],   mytrips:['My Visit History','Review customer visits, follow-up dates, and outcomes'],   mycustomers:['My Customers','Customers assigned to your zone'],   expenses:['Expenses Tracker','Create and manage ODW expense claims'],   salesreports:['Reports','Monthly visit and expenses reports'],   visitreport:['Monthly Visit Report','Monthly customer coverage, order totals, and payment collection'],   myaccount:['My Account','Your employee and login details']  };  let t=zonePage?[zonePage+' — Zone Detail','Attendance, customer visits, follow-ups, and expense history for this zone']:titles[currentPage]||titles.dashboard;  $('topTitle').textContent=t[0];  $('topSubtitle').textContent=t[1];  const pages={   management:managementDashboard,   dashboard:opsDashboard,   followups:opsFollowupRemindersPage,   team:teamPage,   accounts:accountsPage,   attendance:attendancePage,   attrequests:attendanceRequestsPage,   customers:customersPage,   trips:tripsPage,   travelplans:opsTravelPlansPage,   travelplan:myTravelPlanPage,   salescalendar:salesCalendarPage,   reports:reportsPage,   mydashboard:myDashboard,   reminders:followUpRemindersPage,   mark:markPage,   dailytrip:dailyTripPage,   mytrips:myTripsPage,   mycustomers:myCustomersPage,   expenses:expensesTrackerPage,   salesreports:salesReportsPage,   visitreport:monthlyVisitReport,   myaccount:myAccountPage  };  $('page').innerHTML=zonePage?managementZoneDetailPage(zonePage):(pages[currentPage]||opsDashboard)();  wirePage(); }
-function salesCalendarPage(){
- const [year,month]=salesCalendarMonth.split('-').map(Number);
- const firstDay=new Date(year,month-1,1);
- const startDay=firstDay.getDay();
- const daysInMonth=new Date(year,month,0).getDate();
- const monthName=firstDay.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
- const events=(data.salesCalendarEvents||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
- const monthEvents=events.filter(e=>(e.date||'').slice(0,7)===salesCalendarMonth);
- const today=todayISO();
- const types=['Exhibition','Festival','Important Day','Poster / Campaign','Sales Visit','Other'];
- const typeClass=t=>t==='Poster / Campaign'?'poster-campaign':t==='Important Day'?'important-day':t==='Sales Visit'?'sales-visit':String(t||'').toLowerCase().replace(/[^a-z]+/g,'-');
- let cells='';
- for(let i=0;i<startDay;i++)cells+=`<div class="sales-calendar-day other-month"></div>`;
- for(let d=1;d<=daysInMonth;d++){
-  const date=`${salesCalendarMonth}-${String(d).padStart(2,'0')}`;
-  const dayEvents=monthEvents.filter(e=>e.date===date);
-  cells+=`<div class="sales-calendar-day ${date===today?'today':''}" onclick="openSalesCalendarModal(null,'${date}')">
-   <div class="sales-calendar-day-number">${d}</div>
-   ${dayEvents.slice(0,3).map(e=>`<div class="sales-calendar-event ${typeClass(e.type)}" title="${esc(e.title)}" onclick="event.stopPropagation();openSalesCalendarModal('${e.id}')">${esc(e.title)}</div>`).join('')}
-   ${dayEvents.length>3?`<div class="sub">+${dayEvents.length-3} more</div>`:''}
-  </div>`;
- }
- const total=monthEvents.length;
- const upcoming=events.filter(e=>e.date>=today).length;
- const list=monthEvents.length?monthEvents.map(e=>`
-  <div class="sales-calendar-list-row">
-   <div>
-    <div class="name">${esc(e.title)}</div>
-    <div class="sub">${fmtDate(e.date)}${e.endDate&&e.endDate!==e.date?' – '+fmtDate(e.endDate):''} · ${esc(e.type)}${e.location?' · '+esc(e.location):''}</div>
-    ${e.description?`<div class="sub">${esc(e.description)}</div>`:''}
-   </div>
-   <div class="sales-calendar-actions">
-    <button class="btn outline sm" onclick="openSalesCalendarModal('${e.id}')">Edit</button>
-    <button class="btn danger sm" onclick="deleteSalesCalendarEvent('${e.id}')">Delete</button>
-   </div>
-  </div>`).join(''):`<div class="empty">No calendar events added for this month.</div>`;
- return `
- ${heading('Sales Calendar','Plan and track important sales activities, exhibitions, festivals and campaigns',`
-  <button class="btn outline" onclick="downloadSalesCalendarTemplate()">↓ Excel Template</button>
-  <button class="btn outline" onclick="$('salesCalendarImportFile').click()">↑ Import Excel</button>
-  <button class="btn primary" onclick="openSalesCalendarModal()">+ Add Event</button>
- `)}
- <div class="grid metrics">
-  ${metric('Events this month',total,'Events scheduled in this month')}
-  ${metric('Upcoming events',upcoming,'Events from today onwards','greenline')}
-  ${metric('Exhibitions',monthEvents.filter(e=>e.type==='Exhibition').length,'Exhibitions this month')}
-  ${metric('Campaigns & important days',monthEvents.filter(e=>['Poster / Campaign','Important Day'].includes(e.type)).length,'Planned activities','orangeline')}
- </div>
- <section class="panel">
-  <div class="panel-body">
-   <div class="calendar-head">
-    <div class="actions">
-     <button class="btn outline sm" onclick="changeSalesCalendarMonth(-1)">← Previous</button>
-     <button class="btn outline sm" onclick="salesCalendarMonth=todayISO().slice(0,7);renderPage()">Today</button>
-     <button class="btn outline sm" onclick="changeSalesCalendarMonth(1)">Next →</button>
-    </div>
-    <h2 style="margin:0;color:var(--navy)">${monthName}</h2>
-   </div>
-   <div class="sales-calendar-legend">
-    <span><i class="sales-calendar-dot" style="background:#345a9c"></i> Exhibition</span>
-    <span><i class="sales-calendar-dot" style="background:#8b6b40"></i> Festival</span>
-    <span><i class="sales-calendar-dot" style="background:#3d6e59"></i> Important Day</span>
-    <span><i class="sales-calendar-dot" style="background:#9d4e58"></i> Poster / Campaign</span>
-    <span><i class="sales-calendar-dot" style="background:#35666a"></i> Sales Visit</span>
-   </div>
-   <div class="calendar-grid">
-    ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cal-weekday">${d}</div>`).join('')}
-    ${cells}
-   </div>
-  </div>
- </section>
- ${panel('Events for '+monthName,list)}
- <div class="panel">
-  <div class="panel-body">
-   <div class="name">Import instructions</div>
-   <p class="muted small">Download the Excel template, enter the event details, and import the completed file. Event Title, Event Type and Start Date are required. The remaining fields are optional.</p>
-   <input id="salesCalendarImportFile" type="file" accept=".xlsx,.xls,.csv" class="hidden">
-  </div>
- </div>`;
-}
-
-function changeSalesCalendarMonth(step){
- const [y,m]=salesCalendarMonth.split('-').map(Number);
- const d=new Date(y,m-1+step,1);
- salesCalendarMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
- renderPage();
-}
-
-function openSalesCalendarModal(eventId=null,selectedDate=''){
- const existing=eventId?(data.salesCalendarEvents||[]).find(e=>e.id===eventId):null;
- const types=['Exhibition','Festival','Important Day','Poster / Campaign','Sales Visit','Other'];
- showModal(existing?'Edit Calendar Event':'Add Calendar Event',`
-  <div class="form-grid">
-   <div class="field span2">
-    <label>Event Title *</label>
-    <input id="scTitle" value="${esc(existing?.title||'')}" placeholder="Enter event name">
-   </div>
-   <div class="field">
-    <label>Event Type *</label>
-    <select id="scType">${types.map(t=>`<option value="${esc(t)}" ${existing?.type===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
-   </div>
-   <div class="field">
-    <label>Start Date *</label>
-    <input id="scDate" type="date" value="${existing?.date||selectedDate||todayISO()}">
-   </div>
-   <div class="field">
-    <label>End Date</label>
-    <input id="scEndDate" type="date" value="${existing?.endDate||''}">
-   </div>
-   <div class="field">
-    <label>Location</label>
-    <input id="scLocation" value="${esc(existing?.location||'')}" placeholder="City / venue">
-   </div>
-   <div class="field span2">
-    <label>Description / Notes</label>
-    <textarea id="scDescription" rows="3" placeholder="Add details or reminders">${esc(existing?.description||'')}</textarea>
-   </div>
-  </div>
- `,()=>{
-  const title=$('scTitle').value.trim();
-  const type=$('scType').value;
-  const date=$('scDate').value;
-  const endDate=$('scEndDate').value;
-  if(!title||!date){toast('Enter the event title and start date.');return false}
-  if(endDate&&endDate<date){toast('End date cannot be earlier than start date.');return false}
-  const record={title,type,date,endDate,location:$('scLocation').value.trim(),description:$('scDescription').value.trim()};
-  if(existing){Object.assign(existing,record);toast('Calendar event updated.')}
-  else{data.salesCalendarEvents.push({id:id('SCE'),...record,createdAt:Date.now()});toast('Calendar event added.')}
-  save();
-  salesCalendarMonth=date.slice(0,7);
-  renderPage();
- },existing?'Save Changes':'Add Event');
-}
-
-function deleteSalesCalendarEvent(eventId){
- const event=(data.salesCalendarEvents||[]).find(e=>e.id===eventId);
- if(!event)return;
- showModal('Delete Calendar Event',`<p>Are you sure you want to delete <b>${esc(event.title)}</b>?</p>`,()=>{
-  data.salesCalendarEvents=data.salesCalendarEvents.filter(e=>e.id!==eventId);
-  save();
-  toast('Calendar event deleted.');
-  renderPage();
- },'Delete Event');
-}
-
-function downloadSalesCalendarTemplate(){
- const rows=[
-  ['Event Title','Event Type','Start Date','End Date','Location','Description'],
-  ['Example Textile Exhibition','Exhibition','2026-12-10','2026-12-12','Chennai','Example event - replace this row']
- ];
- const ws=XLSX.utils.aoa_to_sheet(rows);
- const wb=XLSX.utils.book_new();
- XLSX.utils.book_append_sheet(wb,ws,'Sales Calendar');
- XLSX.writeFile(wb,'NACHIAS_Sales_Calendar_Template.xlsx');
-}
-
-async function importSalesCalendarExcel(file){
- try{
-  if(!window.XLSX){toast('Excel library did not load. Refresh the page and try again.');return}
-  const buffer=await file.arrayBuffer();
-  const workbook=XLSX.read(buffer,{type:'array',cellDates:false});
-  const sheet=workbook.Sheets[workbook.SheetNames[0]];
-  const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
-  if(!rows.length){toast('The Excel file has no event rows.');return}
-  let added=0,skipped=0;
-  const get=(row,...keys)=>{
-   const key=Object.keys(row).find(k=>keys.some(x=>k.trim().toLowerCase()===x.toLowerCase()));
-   return key===undefined?'':String(row[key]??'').trim();
-  };
-  rows.forEach(row=>{
-   const title=get(row,'Event Title');
-   const type=get(row,'Event Type');
-   const date=get(row,'Start Date');
-   const endDate=get(row,'End Date');
-   if(!title||!type||!date){skipped++;return}
-   const allowed=['Exhibition','Festival','Important Day','Poster / Campaign','Sales Visit','Other'];
-   if(!allowed.includes(type)){skipped++;return}
-   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){skipped++;return}
-   if(endDate&&!/^\d{4}-\d{2}-\d{2}$/.test(endDate)){skipped++;return}
-   if(endDate&&endDate<date){skipped++;return}
-   data.salesCalendarEvents.push({id:id('SCE'),title,type,date,endDate,location:get(row,'Location'),description:get(row,'Description'),createdAt:Date.now()});
-   added++;
-  });
-  save();
-  renderPage();
-  toast(`Import complete: ${added} events added, ${skipped} rows skipped.`);
- }catch(e){
-  console.error('Sales Calendar import failed:',e);
-  toast('Could not import the Excel file. Please use the downloaded template.');
- }
-}
-
-document.addEventListener('change',e=>{
- if(e.target?.id==='salesCalendarImportFile'&&e.target.files?.[0]){
-  importSalesCalendarExcel(e.target.files[0]);
-  e.target.value='';
- }
-});
+function renderPage(){const zonePage=currentPage.startsWith('mgmtzone:')?decodeURIComponent(currentPage.slice('mgmtzone:'.length)):null;const titles={management:['Management Dashboard','Overall performance and zone-wise comparison across attendance, visits, orders, collections, and expenses'],dashboard:['Dashboard','Sales team overview'],followups:['Follow-up Reminders','Consolidated follow-up activity for all salespersons, with filters'],team:['Sales Team','Manage salesperson records and zone assignments'],accounts:['Account Management','Registration status and access'],attendance:['Attendance','Team attendance by date and zone'],attrequests:['Attendance Requests','Review and approve attendance regularization requests'],customers:['Customer Master','Zone-wise customer records'],trips:['Trip Sheets','Customer visit activity and trip records'],travelplans:['Sales Travel Plans','Daily shop plans and execution status by salesperson'],travelplan:['My Travel Plan','Review your planned shops and update visit outcomes'],reports:['Reports','Cumulative sales activity overview'],mydashboard:['My Dashboard','Your daily attendance and field activity'],reminders:['Follow-up Reminders','Due, missed, and upcoming customer follow-ups'],mark:['Attendance','Clock in and review your monthly attendance calendar'],dailytrip:['Daily Trip Sheet','Record multiple customer visits'],mytrips:['My Visit History','Review customer visits, follow-up dates, and outcomes'],mycustomers:['My Customers','Customers assigned to your zone'],expenses:['Expenses Tracker','Create and manage ODW expense claims'],salesreports:['Reports','Monthly visit and expenses reports'],visitreport:['Monthly Visit Report','Monthly customer coverage, order totals, and payment collection'],myaccount:['My Account','Your employee and login details']};let t=zonePage?[zonePage+' — Zone Detail','Attendance, customer visits, follow-ups, and expense history for this zone']:titles[currentPage]||titles.dashboard;$('topTitle').textContent=t[0];$('topSubtitle').textContent=t[1];const pages={management:managementDashboard,dashboard:opsDashboard,followups:opsFollowupRemindersPage,team:teamPage,accounts:accountsPage,attendance:attendancePage,attrequests:attendanceRequestsPage,customers:customersPage,trips:tripsPage,travelplans:opsTravelPlansPage,travelplan:myTravelPlanPage,reports:reportsPage,mydashboard:myDashboard,reminders:followUpRemindersPage,mark:markPage,dailytrip:dailyTripPage,mytrips:myTripsPage,mycustomers:myCustomersPage,expenses:expensesTrackerPage,salesreports:salesReportsPage,visitreport:monthlyVisitReport,myaccount:myAccountPage};$('page').innerHTML=zonePage?managementZoneDetailPage(zonePage):(pages[currentPage]||opsDashboard)();wirePage()}
+function metric(label,value,note='',line=''){return `<div class="metric ${line}"><div class="metric-label">${label}</div><div class="metric-value">${value}</div><div class="metric-note">${note}</div></div>`}
 function heading(title,desc,actions=''){return `<div class="heading"><div><h1>${title}</h1><p>${desc}</p></div><div class="actions">${actions}</div></div>`}
 function panel(title,body,extra=''){return `<section class="panel"><div class="panel-head"><h2>${title}</h2>${extra}</div><div class="panel-body">${body}</div></section>`}
 function personCell(p){return `<div class="person"><div class="avatar">${initials(p.name)}</div><div><div class="name">${esc(p.name)}</div><div class="sub">${esc(p.id)} · ${esc(p.email)}</div></div></div>`}
