@@ -621,7 +621,7 @@ function salesReportsPage(){const tab=window.salesReportTab||'visits';const tabs
    Reports filters (month / custom range, salesperson, zone, customer). */
 function buildVisitMgmtPdf(r){
  if(!r||!window.jspdf?.jsPDF){toast('Report or PDF library is unavailable.');return null}
- const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+ const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
  const NAVY=[38,51,138],SOFT=[201,205,234],RED=[216,54,60],INK=[29,35,51],MUTED=[107,113,134],LINE=[227,230,239],BG=[243,244,250];
  const PW=210,ML=11,MR=11,CW=PW-ML-MR,PH=297,BOTTOM=282,half=(CW-6)/2;
  const inr=n=>Math.round(Number(n)||0).toLocaleString('en-IN'),rs=n=>'Rs. '+inr(n),lakh=n=>'Rs. '+((Number(n)||0)/100000).toFixed(2)+' L';
