@@ -632,10 +632,13 @@ function buildVisitMgmtPdf(r){
  const generated=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
  const fill=c=>doc.setFillColor(...c),draw=c=>doc.setDrawColor(...c),color=c=>doc.setTextColor(...c);
  const font=(w,s)=>{doc.setFont('helvetica',w||'normal');doc.setFontSize(s||9);doc.setCharSpace(0)};
- let logo=null;try{const l=$('loginLogo');if(l?.src?.startsWith('data:image/'))logo=l.src}catch(e){}
+ let logo=null;try{const l=$('loginLogo');if(l?.src?.startsWith('data:image/')){logo=l.src;
+  if(l.naturalWidth&&typeof document!=='undefined'){const c=document.createElement('canvas');c.width=c.height=160;c.getContext('2d').drawImage(l,0,0,160,160);logo=c.toDataURL('image/png')}}}catch(e){}
 
  // ---------- data: group the filtered rows by zone
- const rows=(r.rows||[]).filter(x=>!/^test\b/i.test(x.c.name||''));
+ // leave out test customers, and customers in zones that have no salesperson (e.g. Zone 0 'CASH')
+ const staffed=new Set(data.salespeople.map(p=>p.zone)),skipped=[];
+ const rows=(r.rows||[]).filter(x=>{const keep=!/^test\b/i.test(x.c.name||'')&&(r.person!=='all'||staffed.has(x.c.zone));if(!keep)skipped.push(x.c.name+(x.c.zone?' ('+x.c.zone+')':''));return keep});
  const zmap={};
  rows.forEach(x=>{const z=x.c.zone||'Unassigned';(zmap[z]=zmap[z]||[]).push({name:x.c.name||'',city:tc(x.c.city),visits:x.visits||0,orders:x.orders||0,payment:x.payments||0})});
  const zoneNames=Object.keys(zmap).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
@@ -650,7 +653,7 @@ function buildVisitMgmtPdf(r){
 
  // ---------- drawing helpers
  const header=(scopeText)=>{
-  if(logo){try{doc.addImage(logo,'PNG',ML,8,13,13)}catch(e){}}
+  if(logo){try{doc.addImage(logo,'PNG',ML,8,13,13,'nachiasLogo','FAST')}catch(e){}}
   font('bold',14);color(NAVY);doc.text('NACHIAS',ML+16,14.2,{charSpace:0.9});
   font('normal',7.5);color(MUTED);doc.text('Sales Operations',ML+16,18.6);
   font('bold',8.5);color(INK);doc.text('Monthly Visit Report · '+label,PW-MR,11.5,{align:'right'});
@@ -788,7 +791,7 @@ function buildVisitMgmtPdf(r){
   '**Visited / Not visited**: a store counts as visited if it has at least one visit record in the period.',
   '**Coverage**: visited stores ÷ stores in territory.','**Repeat visits**: total visits minus visited stores (second and later visits to the same store).',
   '**Productive store**: a visited store that gave an order (qty > 0) or a payment (amount > 0).','**Collection per visit**: payment collected ÷ total visits.'],ML+4,y+4.5,CW-8);box(ML,by,CW,y-by+1);y+=9;
- y=h2('Data notes',y);by=y;y=bullets([`Source: Reports > Monthly Visit Report · ${label} · ${scope}.`,'Test customers (names starting with "TEST") are excluded from all figures.',
+ y=h2('Data notes',y);by=y;y=bullets([`Source: Reports > Monthly Visit Report · ${label} · ${scope}.`,'Excluded from all figures: test customers and customers in zones with no salesperson'+(skipped.length?' ('+skipped.slice(0,8).join(', ')+(skipped.length>8?', ...':'')+').':'.'),
   'Order quantity is in pieces as entered by the salesperson. Payment is the amount recorded against the visit.','The portal does not record a reason for stores that were not visited.'],ML+4,y+4.5,CW-8);box(ML,by,CW,y-by+1);
  footer('Definitions and data notes');
 
