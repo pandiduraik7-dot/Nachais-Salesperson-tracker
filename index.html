@@ -1203,6 +1203,348 @@ window.renderPage=function(){
 };
 })();
 
+/* =====================================================================================
+   COMPLAINTS LOG — self-contained plug-in (Sales Operations tab, Sales Team options,
+   read-only zone view for salespersons). Complaints are stored in their own Supabase
+   row (crm_data id 2), so the shared main record (id 1) is never read-modified-written
+   by this feature and salesperson saves can never overwrite complaints.
+   ===================================================================================== */
+(function(){
+const CL_ROW=()=>window.__CL_ROW_ID||2;
+const CL_DEF={brands:['FORMAL','DEAL','BRAVO','WHITE','DHOTI'],
+ faultTypes:['MRP mistake','Timely delivery','Damaged Product','Defective Packaging','Wrong delivery address','Missing Product'],
+ faultStages:['Purchase','Stitching','Final Finishing','Packing','Bill Checking','Picking','Dispatch / Delivery','Other'],closeTargetDays:2};
+const CL_LISTS=[['brands','Brands','e.g. FORMAL'],['faultTypes','Fault types','e.g. MRP mistake'],['faultStages','Fault stages','e.g. Packing']];
+const CL_PAL=['#292d91','#d8363c','#2f9e8f','#e8963a','#7a5af8','#3d8fd1','#b8164f','#8a6a00','#3d6e59','#9aa1bd'];
+const CL_SC={Open:'#d8363c','In Progress':'#e8963a',Closed:'#3d6e59'};
+const CL_STATUSES=['Open','In Progress','Closed'];
+let clStore=null,clLoading=false,clLoadedAt=0,clErr='',clEdit=null,clDraft=null,clBusy=false;
+const clF0=()=>({period:'month',month:todayISO().slice(0,7),from:'',to:'',zone:'all',store:'',brand:'all',type:'all',stage:'all',status:'all'});
+const clSF0=()=>({period:'all',month:todayISO().slice(0,7),from:'',to:'',store:'',type:'all',status:'all'});
+let clF=clF0(),clSF=clSF0();
+
+/* ---------- data: load / save (read-modify-write on the complaints row only) ---------- */
+function clNorm(p){p=p&&typeof p==='object'?p:{};p.complaints=Array.isArray(p.complaints)?p.complaints:[];p.options=Object.assign({},CL_DEF,p.options||{});
+ CL_LISTS.forEach(([k])=>{if(!Array.isArray(p.options[k]))p.options[k]=CL_DEF[k].slice()});p.options.closeTargetDays=Number(p.options.closeTargetDays)||CL_DEF.closeTargetDays;return p}
+async function clFetch(){const{data:row,error}=await sb.from('crm_data').select('payload').eq('id',CL_ROW()).maybeSingle();if(error)throw error;return clNorm(row&&row.payload)}
+async function clLoad(force){
+ if(clLoading||(!force&&clStore&&Date.now()-clLoadedAt<20000))return;
+ clLoading=true;try{clStore=await clFetch();clErr=''}catch(e){console.error('Complaints load failed',e);clErr='Could not load complaints from the server. Check your connection and use Refresh.'}
+ clLoading=false;clLoadedAt=Date.now();if(['complaints','mycomplaints','team'].includes(currentPage))renderPage();
+}
+async function clMutate(fn,okMsg){
+ if(clBusy)return false;clBusy=true;
+ try{const fresh=await clFetch();if(fn(fresh)===false){clBusy=false;return false}fresh.updatedAt=new Date().toISOString();
+  const{error}=await sb.from('crm_data').upsert({id:CL_ROW(),payload:fresh});if(error)throw error;
+  clStore=fresh;clLoadedAt=Date.now();clBusy=false;if(okMsg)toast(okMsg);renderPage();return true}
+ catch(e){console.error('Complaints save failed',e);clBusy=false;toast('Could not save to the server. Please check your connection and try again.');return false}
+}
+const clOpts=()=>(clStore||clNorm({})).options;
+const clAll=()=>(clStore?clStore.complaints:[]);
+
+/* ---------- derived values ---------- */
+const clHasAct=c=>String(c.actionTaken||'').trim()!=='';
+const clStatus=c=>clHasAct(c)&&c.resolvedDate?'Closed':clHasAct(c)?'In Progress':'Open';
+const clD=s=>new Date(s+'T12:00:00');
+const clDays=c=>Math.max(0,Math.round((clD(clStatus(c)==='Closed'?c.resolvedDate:todayISO())-clD(c.date))/864e5));
+const CL_MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const clMon=ym=>{const[y,m]=ym.split('-').map(Number);return CL_MN[m-1]+'-'+String(y).slice(2)};
+const clMonLong=ym=>{const[y,m]=ym.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})};
+const clShift=(ym,n)=>{const[y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const clZones=()=>[...new Set(data.salespeople.map(p=>p.zone).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+const clZone=c=>c.zone||customerById(c.customerId)?.zone||'—';
+const clPlace=c=>[c.customerName||customerById(c.customerId)?.name||'',c.city||customerById(c.customerId)?.city||''].filter(Boolean).join(', ');
+const clPill=s=>`<span class="pill ${s==='Closed'?'green':s==='In Progress'?'orange':'red'}">${esc(s)}</span>`;
+const clAvg=a=>a.length?a.reduce((n,x)=>n+x,0)/a.length:null;
+function clInPeriod(d,f){d=d||'';if(f.period==='month')return d.startsWith(f.month);if(f.period==='custom')return(!f.from||d>=f.from)&&(!f.to||d<=f.to);return true}
+function clFilter(list,f,noPeriod){return list.filter(c=>(noPeriod||clInPeriod(c.date,f))&&(!f.zone||f.zone==='all'||clZone(c)===f.zone)&&(!f.store||c.customerId===f.store)
+ &&(!f.brand||f.brand==='all'||c.brand===f.brand)&&(!f.type||f.type==='all'||c.faultType===f.type)&&(!f.stage||f.stage==='all'||c.faultStage===f.stage)&&(!f.status||f.status==='all'||clStatus(c)===f.status))}
+const clSort=list=>list.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.no||0)-(a.no||0));
+const clNo=c=>'CMP-'+String(c.no||0).padStart(3,'0');
+function clPeriodLabel(f){return f.period==='month'?clMonLong(f.month):f.period==='custom'?`${f.from?fmtDate(f.from):'start'} – ${f.to?fmtDate(f.to):'today'}`:'All dates'}
+function clStats(list){const cl=list.filter(c=>clStatus(c)==='Closed');return{total:list.length,open:list.filter(c=>clStatus(c)==='Open').length,prog:list.filter(c=>clStatus(c)==='In Progress').length,
+ closed:cl.length,avg:clAvg(cl.map(clDays)),overdue:list.filter(c=>clStatus(c)!=='Closed'&&clDays(c)>clOpts().closeTargetDays).length}}
+function clGroup(list,key,order){const m=new Map();(order||[]).forEach(k=>m.set(k,[]));list.forEach(c=>{const k=key(c)||'—';if(!m.has(k))m.set(k,[]);m.get(k).push(c)});return[...m.entries()]}
+
+/* ---------- styles (scoped to cl- classes) ---------- */
+const clCss=document.createElement('style');
+clCss.textContent=`.cl-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.cl-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media(max-width:1100px){.cl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.cl-grid,.cl-grid2{grid-template-columns:1fr}}
+.cl-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px 16px;box-shadow:var(--shadow)}.cl-card h3{margin:0 0 10px;font-size:13px;color:var(--ink)}.cl-card h3 small{color:var(--muted);font-weight:600;font-size:11px;margin-left:6px}
+.cl-kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin:14px 0}@media(max-width:1100px){.cl-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:600px){.cl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.cl-kpi{background:#fff;border:1px solid var(--line);border-radius:13px;padding:11px 13px;box-shadow:var(--shadow);border-top:3px solid var(--navy);cursor:pointer}.cl-kpi.red{border-top-color:#d8363c}.cl-kpi.amber{border-top-color:#e8963a}.cl-kpi.green{border-top-color:#3d6e59}
+.cl-kpi .l{font-size:10px;font-weight:850;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}.cl-kpi .v{font-size:24px;font-weight:800;color:var(--ink);margin-top:3px}.cl-kpi .n{font-size:11px;color:var(--muted)}
+.cl-donut{display:flex;gap:14px;align-items:center}.cl-donut svg{flex:none}.cl-leg{display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0;flex:1}
+.cl-leg button,.cl-bar{display:flex;align-items:center;gap:7px;background:none;border:0;padding:3px 5px;border-radius:7px;cursor:pointer;font:inherit;color:var(--ink);text-align:left;width:100%}
+.cl-leg button:hover,.cl-bar:hover{background:#f3f4fa}.cl-leg .sw{width:10px;height:10px;border-radius:3px;flex:none}.cl-leg .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cl-leg b{font-variant-numeric:tabular-nums}
+.cl-on{background:#eeeffa!important;outline:1.5px solid var(--navy)}.cl-dim{opacity:.38}
+.cl-bar{display:grid;grid-template-columns:110px 1fr 34px;gap:8px;font-size:12px}.cl-bar .tr{height:11px;background:#eef0f6;border-radius:6px;overflow:hidden}.cl-bar .tr i{display:block;height:100%;border-radius:6px;background:var(--navy)}
+.cl-bar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cl-bar b{text-align:right;font-variant-numeric:tabular-nums}
+.cl-trend{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:6px}.cl-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;border-radius:8px;padding:2px 0}.cl-col:hover{background:#f3f4fa}
+.cl-stack{width:60%;max-width:34px;display:flex;flex-direction:column-reverse;border-radius:5px;overflow:hidden;min-height:2px;background:#eef0f6}.cl-col span{font-size:10.5px;color:var(--muted)}.cl-col b{font-size:11px}
+.cl-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}.cl-chip{display:inline-flex;align-items:center;gap:6px;background:#eeeffa;color:var(--navy);border-radius:20px;padding:3px 6px 3px 10px;font-size:12px;font-weight:700}
+.cl-chip button{border:0;background:#fff;color:var(--navy);border-radius:50%;width:18px;height:18px;cursor:pointer;font-weight:800;line-height:1}
+.cl-ac{position:relative;min-width:240px}.cl-ac input{width:100%}.cl-ac-list{position:absolute;z-index:60;left:0;right:0;top:calc(100% + 3px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px #1b1f5a22;max-height:280px;overflow:auto}
+.cl-ac-item{padding:8px 11px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f2f8}.cl-ac-item:hover,.cl-ac-item.act{background:#eeeffa}.cl-ac-item small{display:block;color:var(--muted);font-size:11px}.cl-ac-none{padding:9px 11px;color:var(--muted);font-size:12px}
+.cl-zone{display:inline-flex;align-items:center;gap:6px;min-height:38px;font-weight:800;color:var(--navy)}.cl-form textarea{min-height:64px;resize:vertical}
+.cl-tbl td{vertical-align:top}.cl-tbl td.wrap{white-space:normal;min-width:190px;max-width:320px}.cl-opt{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.cl-opt .cl-chip{background:#f3f4fa;color:var(--ink)}
+.cl-muted{color:var(--muted);font-size:12px}.cl-warn{color:#9d4e58;font-weight:700}`;
+document.head.appendChild(clCss);
+
+/* ---------- charts ---------- */
+function clDonut(rows,key,f,colorOf){
+ const tot=rows.reduce((n,r)=>n+r[1],0),R=46,r=29,cx=56,cy=56;let a0=-Math.PI/2,segs='';
+ if(!tot)segs=`<circle cx="${cx}" cy="${cy}" r="${(R+r)/2}" fill="none" stroke="#eef0f6" stroke-width="${R-r}"/>`;
+ rows.forEach(([k,v],i)=>{if(!v)return;const a1=a0+2*Math.PI*v/tot,big=a1-a0>Math.PI?1:0,col=colorOf?colorOf(k,i):CL_PAL[i%CL_PAL.length];
+  if(v===tot){segs+=`<circle cx="${cx}" cy="${cy}" r="${(R+r)/2}" fill="none" stroke="${col}" stroke-width="${R-r}" data-cl="f" data-k="${key}" data-v="${esc(k)}" style="cursor:pointer"><title>${esc(k)}: ${v}</title></circle>`}
+  else{const p=(rad,a)=>`${(cx+rad*Math.cos(a)).toFixed(2)} ${(cy+rad*Math.sin(a)).toFixed(2)}`;
+   segs+=`<path d="M${p(R,a0)} A${R} ${R} 0 ${big} 1 ${p(R,a1)} L${p(r,a1)} A${r} ${r} 0 ${big} 0 ${p(r,a0)}Z" fill="${col}" stroke="#fff" stroke-width="1.5" data-cl="f" data-k="${key}" data-v="${esc(k)}" style="cursor:pointer" class="${f[key]!=='all'&&f[key]!==k?'cl-dim':''}"><title>${esc(k)}: ${v}</title></path>`}
+  a0=a1});
+ const leg=rows.map(([k,v],i)=>`<button data-cl="f" data-k="${key}" data-v="${esc(k)}" class="${f[key]===k?'cl-on':''} ${!v?'cl-dim':''}"><span class="sw" style="background:${colorOf?colorOf(k,i):CL_PAL[i%CL_PAL.length]}"></span><span class="nm">${esc(k)}</span><b>${v}</b></button>`).join('');
+ return `<div class="cl-donut"><svg viewBox="0 0 112 112" width="112" height="112">${segs}<text x="56" y="58" text-anchor="middle" font-size="19" font-weight="800" fill="#24263b">${tot}</text><text x="56" y="72" text-anchor="middle" font-size="8.5" fill="#6f7896">complaints</text></svg><div class="cl-leg">${leg||'<span class="cl-muted">No data</span>'}</div></div>`;
+}
+function clBars(rows,key,f,color){const mx=Math.max(1,...rows.map(r=>r[1]));
+ return rows.length?rows.map(([k,v])=>`<button class="cl-bar ${f[key]===k?'cl-on':''} ${!v?'cl-dim':''}" data-cl="f" data-k="${key}" data-v="${esc(k)}" title="${esc(k)}: ${v}"><span class="nm">${esc(k)}</span><span class="tr"><i style="width:${(100*v/mx).toFixed(1)}%;background:${color||'var(--navy)'}"></i></span><b>${v}</b></button>`).join(''):'<span class="cl-muted">No data</span>'}
+function clTrend(list,f){
+ const end=f.period==='month'?f.month:f.period==='custom'&&f.to?f.to.slice(0,7):todayISO().slice(0,7),months=[];for(let i=5;i>=0;i--)months.push(clShift(end,-i));
+ const data6=months.map(m=>{const l=list.filter(c=>(c.date||'').startsWith(m));return[m,l.filter(c=>clStatus(c)==='Closed').length,l.filter(c=>clStatus(c)==='In Progress').length,l.filter(c=>clStatus(c)==='Open').length]});
+ const mx=Math.max(1,...data6.map(d=>d[1]+d[2]+d[3]));
+ return `<div class="cl-trend">${data6.map(([m,c,p,o])=>{const t=c+p+o;return `<div class="cl-col ${f.period==='month'&&f.month===m?'cl-on':''}" data-cl="month" data-v="${m}" title="${clMon(m)}: ${t} (Open ${o}, In progress ${p}, Closed ${c})"><b>${t}</b><div class="cl-stack" style="height:${Math.max(2,110*t/mx)}px">${[[c,CL_SC.Closed],[p,CL_SC['In Progress']],[o,CL_SC.Open]].map(([v,col])=>v?`<i style="display:block;height:${100*v/t}%;background:${col}"></i>`:'').join('')}</div><span>${clMon(m)}</span></div>`}).join('')}</div>
+ <div class="cl-chips" style="margin-top:4px">${Object.entries(CL_SC).map(([k,c])=>`<span class="cl-muted"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${c};margin-right:4px"></span>${k}</span>`).join('')}</div>`;
+}
+
+/* ---------- store search (type-ahead) ---------- */
+function clAcBox(key,cid,ph,zone){const c=cid?customerById(cid):null;
+ return `<div class="cl-ac"><input class="search cl-ac-in" data-ack="${key}" data-zone="${esc(zone||'')}" autocomplete="off" placeholder="${esc(ph)}" value="${esc(c?c.name:'')}"><div class="cl-ac-list hidden"></div></div>`}
+function clAcShow(inp){
+ const q=inp.value.trim().toLowerCase(),zone=inp.dataset.zone,list=inp.parentElement.querySelector('.cl-ac-list');
+ let m=data.customers.filter(c=>(!zone||c.zone===zone)&&!/^test\b/i.test(c.name||'')&&(!q||(c.name||'').toLowerCase().includes(q)||(c.city||'').toLowerCase().includes(q)));
+ m.sort((a,b)=>((b.name||'').toLowerCase().startsWith(q)-(a.name||'').toLowerCase().startsWith(q))||(a.name||'').localeCompare(b.name||''));
+ list.innerHTML=m.slice(0,40).map((c,i)=>`<div class="cl-ac-item ${i===0?'act':''}" data-cid="${esc(c.id)}">${esc(c.name)}<small>${esc(c.city||'—')} · ${esc(c.zone||'No zone')}</small></div>`).join('')||'<div class="cl-ac-none">No matching store</div>';
+ list.classList.remove('hidden');
+}
+function clAcPick(inp,cid){
+ const c=customerById(cid);inp.value=c?c.name:'';inp.parentElement.querySelector('.cl-ac-list').classList.add('hidden');
+ const k=inp.dataset.ack;
+ if(k==='form'){clDraft=cid;const z=$('clFormZone'),ct=$('clFormCity');if(z)z.innerHTML=c?`${esc(c.zone||'No zone')} <span class="cl-muted">· ${esc(zonePeople(c.zone))}</span>`:'—';if(ct)ct.textContent=c?.city||'—'}
+ else if(k==='filter'){clF.store=cid||'';clRefresh()}
+ else if(k==='sfilter'){clSF.store=cid||'';clRefresh()}
+}
+const zonePeople=z=>data.salespeople.filter(p=>p.zone===z).map(p=>p.name).join(', ')||'no salesperson';
+
+/* ---------- Sales Operations page ---------- */
+function clFilterBar(f,sales){
+ const o=clOpts(),sel=(k,label,vals)=>`<select data-clf="${k}"><option value="all">${label}</option>${vals.map(v=>`<option ${f[k]===v?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
+ const zone=sales?(myPerson()?.zone||''):'';
+ return `<div class="toolbar" style="margin-bottom:6px">
+ <select data-clf="period"><option value="month" ${f.period==='month'?'selected':''}>Monthly</option><option value="custom" ${f.period==='custom'?'selected':''}>Custom date range</option><option value="all" ${f.period==='all'?'selected':''}>All dates</option></select>
+ ${f.period==='month'?`<label class="filter-label">Month <input type="month" data-clf="month" value="${esc(f.month)}"></label>`:''}
+ ${f.period==='custom'?`<label class="filter-label">From <input type="date" data-clf="from" value="${esc(f.from)}"></label><label class="filter-label">To <input type="date" data-clf="to" value="${esc(f.to)}"></label>`:''}
+ ${sales?'':sel('zone','All zones',clZones())}
+ ${clAcBox(sales?'sfilter':'filter',f.store,'Search store…',zone)}
+ ${sales?'':sel('brand','All brands',o.brands)}${sel('type','All fault types',o.faultTypes)}${sales?'':sel('stage','All fault stages',o.faultStages)}${sel('status','All statuses',CL_STATUSES)}
+ <button class="btn outline" data-cl="clear">Clear filters</button><button class="btn outline" data-cl="refresh" title="Load the latest complaints">⟳ Refresh</button></div>
+ ${clChips(f)}`;
+}
+function clChips(f){const lab={zone:'Zone',brand:'Brand',type:'Fault type',stage:'Fault stage',status:'Status'},ch=[];
+ Object.keys(lab).forEach(k=>{if(f[k]&&f[k]!=='all')ch.push([k,lab[k]+': '+f[k]])});if(f.store)ch.push(['store','Store: '+(customerById(f.store)?.name||'')]);
+ return `<div class="cl-chips"><span class="cl-muted">Showing <b>${esc(clPeriodLabel(f))}</b>${ch.length?' · filtered by':''}</span>${ch.map(([k,t])=>`<span class="cl-chip">${esc(t)}<button data-cl="x" data-k="${k}" title="Remove filter">×</button></span>`).join('')}</div>`}
+function clDash(){
+ if(!clStore)return `<div class="notice">${clErr?esc(clErr):'Loading complaints…'}</div>`;
+ const f=clF,o=clOpts(),list=clFilter(clAll(),f),s=clStats(list),tgt=o.closeTargetDays;
+ let cmp='';if(f.period==='month'){const prev=clFilter(clAll(),{...f,month:clShift(f.month,-1)}).length,d=s.total-prev;cmp=`${d>0?'▲ '+d:d<0?'▼ '+(-d):'No change'} vs ${clMon(clShift(f.month,-1))} (${prev})`}
+ const openAll=clAll().filter(c=>clStatus(c)!=='Closed'),oldest=openAll.length?Math.max(...openAll.map(clDays)):0;
+ const kpi=(l,v,n,cls,k,val)=>`<div class="cl-kpi ${cls||''}" ${k?`data-cl="f" data-k="${k}" data-v="${val}"`:''}><div class="l">${l}</div><div class="v">${v}</div><div class="n">${n}</div></div>`;
+ return `${clFilterBar(f)}
+ <div class="cl-kpis">${kpi('Total complaints',s.total,cmp||esc(clPeriodLabel(f)))}${kpi('Open',s.open,'No action yet','red','status','Open')}${kpi('In progress',s.prog,'Action taken, not resolved','amber','status','In Progress')}
+ ${kpi('Closed',s.closed,s.total?Math.round(100*s.closed/s.total)+'% of complaints':'—','green','status','Closed')}${kpi('Avg days to close',s.avg==null?'—':s.avg.toFixed(1),`Target: within ${tgt} day${tgt===1?'':'s'}`)}
+ ${kpi('Overdue',s.overdue,`Not closed after ${tgt} days`,s.overdue?'red':'')}${kpi('Oldest open',oldest+' d','All months, all zones',oldest>tgt?'red':'')}</div>
+ <div class="cl-grid">
+  <div class="cl-card"><h3>By status<small>click to filter</small></h3>${clDonut(CL_STATUSES.map(k=>[k,list.filter(c=>clStatus(c)===k).length]),'status',f,k=>CL_SC[k])}</div>
+  <div class="cl-card"><h3>By fault type<small>click to filter</small></h3>${clDonut(clGroup(list,c=>c.faultType,o.faultTypes).map(([k,v])=>[k,v.length]),'type',f)}</div>
+  <div class="cl-card"><h3>Monthly comparison<small>last 6 months · click a month</small></h3>${clTrend(clFilter(clAll(),f,true),f)}</div>
+  <div class="cl-card"><h3>By fault stage<small>click to filter</small></h3>${clBars(clGroup(list,c=>c.faultStage,o.faultStages).map(([k,v])=>[k,v.length]),'stage',f,'#7a5af8')}</div>
+  <div class="cl-card"><h3>By zone<small>click to filter</small></h3>${clBars(clGroup(list,clZone,clZones()).map(([k,v])=>[k,v.length]),'zone',f,'#292d91')}</div>
+  <div class="cl-card"><h3>By brand<small>click to filter</small></h3>${clBars(clGroup(list,c=>c.brand,o.brands).map(([k,v])=>[k,v.length]),'brand',f,'#2f9e8f')}</div>
+ </div>`;
+}
+function clForm(){
+ const o=clOpts(),c=clEdit?clAll().find(x=>x.id===clEdit):null,v=k=>esc(c?c[k]||'':''),cust=clDraft?customerById(clDraft):null;
+ const sel=(id,vals,cur,ph)=>{const list=cur&&!vals.includes(cur)?[...vals,cur]:vals;return `<select id="${id}"><option value="">${ph}</option>${list.map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('')}</select>`};
+ const names=[...new Set([...data.salespeople.map(p=>p.name),...clAll().map(x=>x.raisedBy).filter(Boolean)])];
+ return panel(c?`Update complaint ${esc(clNo(c))}`:'Log a new complaint',`<div class="cl-form">
+ <div class="form-grid">
+  <div class="field"><label>Complaint date *</label><input type="date" id="clDate" max="${todayISO()}" value="${c?v('date'):todayISO()}"></div>
+  <div class="field"><label>Raised by</label><input id="clRaised" list="clRaisedList" placeholder="Name of the person who raised it" value="${v('raisedBy')}"><datalist id="clRaisedList">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
+  <div class="field"><label>Customer / store *</label>${clAcBox('form',clDraft,'Type to search, e.g. AK…','')}</div>
+  <div class="field"><label>Zone (auto) · City</label><div class="cl-zone"><span id="clFormZone">${cust?`${esc(cust.zone||'No zone')} <span class="cl-muted">· ${esc(zonePeople(cust.zone))}</span>`:'—'}</span><span class="cl-muted">·</span><span id="clFormCity" class="cl-muted">${esc(cust?.city||'—')}</span></div></div>
+  <div class="field"><label>Brand</label>${sel('clBrand',o.brands,c?.brand||'','Select brand')}</div>
+  <div class="field"><label>Fault type *</label>${sel('clType',o.faultTypes,c?.faultType||'','Select fault type')}</div>
+  <div class="field"><label>Fault stage</label>${sel('clStage',o.faultStages,c?.faultStage||'','Select fault stage')}</div>
+  <div class="field"><label>Resolved date</label><input type="date" id="clResolved" max="${todayISO()}" value="${v('resolvedDate')}"></div>
+  <div class="field span2"><label>Fault description</label><textarea id="clDesc" placeholder="What went wrong?">${v('description')}</textarea></div>
+  <div class="field span2"><label>Action taken</label><textarea id="clAction" placeholder="Leave empty until action is taken">${v('actionTaken')}</textarea></div>
+ </div>
+ <div class="notice" style="margin:4px 0 12px">Status is automatic: <b>Open</b> until Action taken is filled · <b>In progress</b> when action is taken · <b>Closed</b> once Resolved date is also filled. Target: close within ${o.closeTargetDays} day${o.closeTargetDays===1?'':'s'}.</div>
+ <div class="toolbar"><button class="btn primary" data-cl="save">${c?'Update complaint':'＋ Save complaint'}</button>${c?'<button class="btn outline" data-cl="cancel">Cancel edit</button>':''}</div></div>`);
+}
+function clTable(){
+ if(!clStore)return '';const list=clSort(clFilter(clAll(),clF));
+ const rows=list.map((c,i)=>{const s=clStatus(c),d=clDays(c),late=s!=='Closed'&&d>clOpts().closeTargetDays;
+  return `<tr><td>${i+1}</td><td><b>${esc(clNo(c))}</b></td><td>${fmtDate(c.date)}</td><td>${esc(clMon(c.date.slice(0,7)))}</td><td>${esc(c.raisedBy||'—')}</td><td>${esc(c.brand||'—')}</td>
+  <td class="wrap">${esc(clPlace(c))}</td><td>${esc(clZone(c))}</td><td>${esc(c.faultType||'—')}</td><td>${esc(c.faultStage||'—')}</td><td class="wrap">${esc(c.description||'—')}</td><td class="wrap">${esc(c.actionTaken||'—')}</td>
+  <td>${c.resolvedDate?fmtDate(c.resolvedDate):'—'}</td><td>${clPill(s)}</td><td class="${late?'cl-warn':''}">${d}</td>
+  <td><div class="actions"><button class="btn outline sm" data-cl="edit" data-id="${esc(c.id)}">Edit</button><button class="btn danger sm" data-cl="del" data-id="${esc(c.id)}">Delete</button></div></td></tr>`}).join('');
+ return panel(`Complaints (${list.length})`,`<div class="table-wrap"><table class="cl-tbl"><thead><tr><th>S.No</th><th>Complaint No.</th><th>Complaint date</th><th>Month</th><th>Raised by</th><th>Brand</th><th>Customer name &amp; place</th><th>Zone</th><th>Fault type</th><th>Fault stage</th><th>Fault description</th><th>Action taken</th><th>Resolved date</th><th>Status</th><th>Days open</th><th>Actions</th></tr></thead>
+ <tbody>${rows||'<tr><td colspan="16" class="empty">No complaints match the selected filters.</td></tr>'}</tbody></table></div>`,`<button class="btn outline sm" data-cl="export">⇩ Download Excel</button>`);
+}
+function clOpsPage(){clLoad();
+ return `${heading('Complaints Log','Log customer complaints, track actions and closing time, and review the trend by fault, stage, zone and brand.',`<button class="btn primary" data-cl="new">＋ New complaint</button><button class="btn outline" data-cl="export">⇩ Download Excel</button>`)}
+ <div id="clDash">${clDash()}</div><div id="clFormBox" style="margin-top:16px">${clForm()}</div><div id="clTable">${clTable()}</div>`}
+
+/* ---------- salesperson page (read-only, own zone) ---------- */
+function clSalesBody(){
+ const zone=myPerson()?.zone;if(!clStore)return `<div class="notice">${clErr?esc(clErr):'Loading complaints…'}</div>`;
+ if(!zone)return '<div class="notice">No zone is assigned to your profile yet. Please contact Sales Operations.</div>';
+ const all=clAll().filter(c=>clZone(c)===zone),list=clSort(clFilter(all,clSF)),s=clStats(list);
+ const kpi=(l,v,cls,val)=>`<div class="cl-kpi ${cls||''}" ${val?`data-cl="f" data-k="status" data-v="${val}"`:''}><div class="l">${l}</div><div class="v">${v}</div></div>`;
+ return `${clFilterBar(clSF,true)}<div class="cl-kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">${kpi('Total',s.total)}${kpi('Open',s.open,'red','Open')}${kpi('In progress',s.prog,'amber','In Progress')}${kpi('Closed',s.closed,'green','Closed')}</div>
+ ${panel(`Complaints in ${esc(zone)} (${list.length})`,`<div class="table-wrap"><table class="cl-tbl"><thead><tr><th>Complaint No.</th><th>Date</th><th>Customer / store</th><th>City</th><th>Brand</th><th>Fault type</th><th>Fault stage</th><th>Fault description</th><th>Action taken</th><th>Resolved date</th><th>Status</th><th>Days open</th></tr></thead><tbody>
+ ${list.map(c=>`<tr><td><b>${esc(clNo(c))}</b></td><td>${fmtDate(c.date)}</td><td class="wrap">${esc(c.customerName||customerById(c.customerId)?.name||'—')}</td><td>${esc(c.city||customerById(c.customerId)?.city||'—')}</td><td>${esc(c.brand||'—')}</td><td>${esc(c.faultType||'—')}</td><td>${esc(c.faultStage||'—')}</td><td class="wrap">${esc(c.description||'—')}</td><td class="wrap">${esc(c.actionTaken||'—')}</td><td>${c.resolvedDate?fmtDate(c.resolvedDate):'—'}</td><td>${clPill(clStatus(c))}</td><td>${clDays(c)}</td></tr>`).join('')||'<tr><td colspan="12" class="empty">No complaints for your zone with these filters.</td></tr>'}
+ </tbody></table></div>`)}`;
+}
+function clSalesPage(){clLoad();return `${heading('Complaints Log',`Customer complaints for your zone. Sales Operations logs and updates these; this page is view-only.`)}<div id="clMine">${clSalesBody()}</div>`}
+
+/* ---------- Sales Team: complaint options ---------- */
+function clOptionsPanel(){
+ if(!clStore)return panel('Complaints — dropdown options',`<div class="notice">${clErr?esc(clErr):'Loading complaint options…'}</div>`);
+ const o=clOpts();
+ return panel('Complaints — dropdown options',`<div class="notice">These lists feed the dropdowns in <b>Complaints Log</b>. Add or remove items here; existing complaints keep the value they were logged with.</div>
+ <div class="cl-grid">${CL_LISTS.map(([k,label,ph])=>`<div class="cl-card"><h3>${label}<small>${o[k].length} options</small></h3><div class="cl-opt">${o[k].map((x,i)=>`<span class="cl-chip">${esc(x)}<button data-cl="opt-del" data-k="${k}" data-i="${i}" title="Remove">×</button></span>`).join('')||'<span class="cl-muted">No options yet</span>'}</div>
+ <div class="toolbar"><input id="clOpt_${k}" placeholder="${esc(ph)}" style="flex:1;min-width:120px"><button class="btn outline sm" data-cl="opt-add" data-k="${k}">＋ Add</button></div></div>`).join('')}</div>
+ <div class="toolbar" style="margin-top:14px"><label class="filter-label">Target to close a complaint (days) <input type="number" min="1" max="30" id="clTarget" value="${o.closeTargetDays}" style="width:80px"></label><button class="btn primary sm" data-cl="opt-target">Save target</button></div>`);
+}
+
+/* ---------- Excel export (styled with ExcelJS; plain SheetJS fallback) ---------- */
+function clLoadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+async function clExport(){
+ if(!clStore){toast('Complaints are still loading.');return}
+ const f=clF,o=clOpts(),list=clSort(clFilter(clAll(),f)).reverse(),per=clPeriodLabel(f),now=new Date();
+ const head=['S.No','Complaint No.','Complaint Date','Month','Raised By','Brand','Customer Name & Place','Zone','Fault Type','Fault Stage','Fault Description','Action Taken','Resolved Date','Status','Days Open'];
+ const rows=list.map((c,i)=>[i+1,clNo(c),c.date?clD(c.date):'',clMon(c.date.slice(0,7)),c.raisedBy||'',c.brand||'',clPlace(c),clZone(c),c.faultType||'',c.faultStage||'',c.description||'',c.actionTaken||'',c.resolvedDate?clD(c.resolvedDate):'',clStatus(c),clDays(c)]);
+ const grp=(name,key,order)=>[[name,'Total','Open','In Progress','Closed','Avg Days to Close'],...clGroup(list,key,order).map(([k,l])=>{const s=clStats(l);return[k,s.total,s.open,s.prog,s.closed,s.avg==null?'-':Number(s.avg.toFixed(1))]})];
+ const S=clStats(list),openAll=clAll().filter(c=>clStatus(c)!=='Closed'),oldest=openAll.length?Math.max(...openAll.map(clDays)):0;
+ const endM=f.period==='month'?f.month:todayISO().slice(0,7),trend=[['Month','Total','Open','In Progress','Closed','Avg Days to Close']];
+ for(let i=11;i>=0;i--){const m=clShift(endM,-i),l=clFilter(clAll(),f,true).filter(c=>(c.date||'').startsWith(m)),s=clStats(l);trend.push([clMon(m),s.total,s.open,s.prog,s.closed,s.avg==null?'-':Number(s.avg.toFixed(1))])}
+ const tables=[['By Zone',grp('Zone',clZone,clZones())],['By Brand',grp('Brand',c=>c.brand,o.brands)],['By Fault Type',grp('Fault Type',c=>c.faultType,o.faultTypes)],['By Fault Stage',grp('Fault Stage',c=>c.faultStage,o.faultStages)],['Monthly Trend (last 12 months)',trend]];
+ const fname=`Nachias_Sales_Operations_Customer_Complaints_Log_${f.period==='month'?f.month:f.period==='custom'?(f.from||'start')+'_to_'+(f.to||'today'):'All'}.xlsx`;
+ try{
+  if(!window.ExcelJS)await clLoadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js');
+  const wb=new ExcelJS.Workbook();wb.creator='Nachias Sales CRM';
+  const NAVY='FF292D91',thin={style:'thin',color:{argb:'FFD9DCE8'}},border={top:thin,left:thin,bottom:thin,right:thin};
+  const ws=wb.addWorksheet('Complaints Log',{views:[{state:'frozen',ySplit:4}]});
+  [6,13,14,9,17,11,30,10,21,18,42,46,13,13,10].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  ws.mergeCells(1,1,1,15);Object.assign(ws.getCell('A1'),{value:'Nachias Sales Operations  |  Customer Complaints Log'});ws.getCell('A1').font={bold:true,size:15,color:{argb:NAVY}};ws.getRow(1).height=24;
+  ws.mergeCells(2,1,2,15);ws.getCell('A2').value=`Period: ${per}   ·   Generated: ${now.toLocaleString('en-IN')}   ·   Status is Closed when Action Taken and Resolved Date are both filled; In Progress when only Action Taken is filled.`;ws.getCell('A2').font={italic:true,size:9,color:{argb:'FF6F7896'}};
+  const hr=ws.getRow(4);hr.values=head;hr.height=30;hr.eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.alignment={vertical:'middle',horizontal:'center',wrapText:true};c.border=border});
+  rows.forEach(r=>{const row=ws.addRow(r);row.eachCell({includeEmpty:true},(c,ci)=>{c.border=border;c.alignment={vertical:'top',wrapText:[7,11,12].includes(ci)}});
+   [3,13].forEach(ci=>{if(row.getCell(ci).value)row.getCell(ci).numFmt='dd-mm-yyyy'});
+   const st=row.getCell(14),col=st.value==='Closed'?'FFE3F1E7':st.value==='In Progress'?'FFFDF0DC':'FFFBE3E4';st.fill={type:'pattern',pattern:'solid',fgColor:{argb:col}};st.font={bold:true};
+   if(st.value!=='Closed'&&row.getCell(15).value>o.closeTargetDays)row.getCell(15).font={bold:true,color:{argb:'FFC0392B'}}});
+  ws.autoFilter={from:{row:4,column:1},to:{row:4+rows.length,column:15}};
+  const sm=wb.addWorksheet('Management Summary');[26,12,12,13,12,18].forEach((w,i)=>sm.getColumn(i+1).width=w);
+  sm.mergeCells(1,1,1,6);sm.getCell('A1').value='Sales Operations  |  Complaints – Management Summary';sm.getCell('A1').font={bold:true,size:15,color:{argb:NAVY}};
+  sm.getCell('A2').value='Period: '+per;sm.getCell('A2').font={italic:true,color:{argb:'FF6F7896'}};
+  let r=4;const kh=['Total Complaints','Open','In Progress','Closed','Avg Days to Close','Oldest Open (All Months, Days)'];sm.getRow(r).values=kh;sm.getRow(r+1).values=[S.total,S.open,S.prog,S.closed,S.avg==null?'-':Number(S.avg.toFixed(1)),oldest];
+  sm.getRow(r).eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.alignment={wrapText:true,vertical:'middle',horizontal:'center'};c.border=border});
+  sm.getRow(r+1).eachCell(c=>{c.font={bold:true,size:13};c.alignment={horizontal:'center'};c.border=border});sm.getRow(r).height=30;r+=3;
+  tables.forEach(([title,t])=>{sm.getCell(r,1).value=title;sm.getCell(r,1).font={bold:true,size:12,color:{argb:NAVY}};r++;
+   t.forEach((vals,i)=>{const row=sm.getRow(r++);row.values=vals;row.eachCell({includeEmpty:true},c=>{c.border=border;if(i===0){c.font={bold:true};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEEEFFA'}}}})});
+   if(t.length>1){const row=sm.getRow(r++);row.values=['Total',...[1,2,3,4].map(ci=>t.slice(1).reduce((n,x)=>n+(Number(x[ci])||0),0))];row.eachCell(c=>{c.font={bold:true};c.border=border})}r+=1});
+  const lists=wb.addWorksheet('Lists');lists.getRow(1).values=['Brand','Fault Type','Fault Stage'];lists.getRow(1).font={bold:true};
+  for(let i=0;i<Math.max(o.brands.length,o.faultTypes.length,o.faultStages.length);i++)lists.getRow(i+2).values=[o.brands[i]||'',o.faultTypes[i]||'',o.faultStages[i]||''];[18,26,22].forEach((w,i)=>lists.getColumn(i+1).width=w);
+  const buf=await wb.xlsx.writeBuffer();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=fname;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('Complaints Log downloaded.');
+ }catch(e){
+  console.warn('Styled export unavailable, using plain workbook',e);
+  if(!window.XLSX){toast('Excel library did not load. Check your internet connection.');return}
+  const wb=XLSX.utils.book_new(),fmt=v=>v instanceof Date?v.toLocaleDateString('en-GB'):v;
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Nachias Sales Operations | Customer Complaints Log'],['Period: '+per],[],head,...rows.map(r=>r.map(fmt))]),'Complaints Log');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Complaints – Management Summary'],['Period: '+per],[],['Total','Open','In Progress','Closed','Avg Days to Close'],[S.total,S.open,S.prog,S.closed,S.avg==null?'-':S.avg.toFixed(1)],[],...tables.flatMap(([t,x])=>[[t],...x,[]])]),'Management Summary');
+  XLSX.writeFile(wb,fname);toast('Complaints Log downloaded.');
+ }
+}
+
+/* ---------- actions ---------- */
+function clRefresh(){
+ if(currentPage==='complaints'){const d=$('clDash'),t=$('clTable');if(d)d.innerHTML=clDash();if(t)t.innerHTML=clTable()}
+ else if(currentPage==='mycomplaints'){const m=$('clMine');if(m)m.innerHTML=clSalesBody()}
+}
+const clCur=()=>currentPage==='mycomplaints'?clSF:clF;
+async function clSaveForm(){
+ const date=$('clDate').value,cust=clDraft?customerById(clDraft):null,type=$('clType').value,resolved=$('clResolved').value,action=$('clAction').value.trim();
+ if(!date){toast('Please enter the complaint date.');return}
+ if(!cust){toast('Please pick the customer / store from the search list.');return}
+ if(!type){toast('Please select the fault type.');return}
+ if(resolved&&resolved<date){toast('Resolved date cannot be before the complaint date.');return}
+ if(resolved&&!action){toast('Please fill Action taken before entering the Resolved date.');return}
+ const rec={date,raisedBy:$('clRaised').value.trim(),brand:$('clBrand').value,customerId:cust.id,customerName:cust.name,city:cust.city||'',zone:cust.zone||'',
+  faultType:type,faultStage:$('clStage').value,description:$('clDesc').value.trim(),actionTaken:action,resolvedDate:resolved,updatedAt:new Date().toISOString(),updatedBy:currentUser?.email||''};
+ const editing=clEdit;
+ const ok=await clMutate(st=>{
+  if(editing){const c=st.complaints.find(x=>x.id===editing);if(!c){toast('This complaint was deleted by someone else.');return false}Object.assign(c,rec)}
+  else st.complaints.push({id:'cmp_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),no:st.complaints.reduce((n,x)=>Math.max(n,x.no||0),0)+1,createdAt:rec.updatedAt,createdBy:rec.updatedBy,...rec});
+ },editing?'Complaint updated.':'Complaint saved.');
+ if(ok){clEdit=null;clDraft=null;renderPage()}
+}
+document.addEventListener('click',e=>{
+ const t=e.target.closest?.('[data-cl]');if(!t)return;const a=t.dataset.cl,f=clCur();
+ if(a==='f'){const k=t.dataset.k,v=t.dataset.v;f[k]=f[k]===v?'all':v;clRefresh()}
+ else if(a==='month'){clF.period='month';clF.month=t.dataset.v;clRefresh()}
+ else if(a==='x'){const k=t.dataset.k;f[k]=k==='store'?'':'all';clRefresh()}
+ else if(a==='clear'){if(currentPage==='mycomplaints')clSF=clSF0();else clF=clF0();clRefresh()}
+ else if(a==='refresh')clLoad(true);
+ else if(a==='new'){clEdit=null;clDraft=null;const b=$('clFormBox');if(b){b.innerHTML=clForm();b.scrollIntoView({behavior:'smooth',block:'start'})}}
+ else if(a==='edit'){const c=clAll().find(x=>x.id===t.dataset.id);if(!c)return;clEdit=c.id;clDraft=c.customerId;const b=$('clFormBox');if(b){b.innerHTML=clForm();b.scrollIntoView({behavior:'smooth',block:'start'})}}
+ else if(a==='cancel'){clEdit=null;clDraft=null;const b=$('clFormBox');if(b)b.innerHTML=clForm()}
+ else if(a==='save')clSaveForm();
+ else if(a==='del'){const c=clAll().find(x=>x.id===t.dataset.id);if(!c||!confirm(`Delete complaint ${clNo(c)} (${clPlace(c)})? This cannot be undone.`))return;
+  clMutate(st=>{st.complaints=st.complaints.filter(x=>x.id!==c.id)},'Complaint deleted.');if(clEdit===c.id){clEdit=null;clDraft=null}}
+ else if(a==='export')clExport();
+ else if(a==='opt-add'){const k=t.dataset.k,inp=$('clOpt_'+k),v=(inp?.value||'').trim();if(!v){toast('Type the option first.');return}
+  if(clOpts()[k].some(x=>x.toLowerCase()===v.toLowerCase())){toast('That option already exists.');return}clMutate(st=>{st.options[k].push(v)},'Option added.')}
+ else if(a==='opt-del'){const k=t.dataset.k,i=Number(t.dataset.i),v=clOpts()[k][i];if(v==null||!confirm(`Remove "${v}" from the list? Existing complaints keep this value.`))return;clMutate(st=>{st.options[k]=st.options[k].filter(x=>x!==v)},'Option removed.')}
+ else if(a==='opt-target'){const n=Math.round(Number($('clTarget')?.value));if(!(n>=1&&n<=30)){toast('Enter a target between 1 and 30 days.');return}clMutate(st=>{st.options.closeTargetDays=n},'Closing target saved.')}
+});
+document.addEventListener('change',e=>{const el=e.target;if(!el?.dataset?.clf)return;const f=clCur(),k=el.dataset.clf;f[k]=el.value;
+ if(k==='period'&&el.value==='custom'&&!f.from){f.from=todayISO().slice(0,8)+'01';f.to=todayISO()}if(k==='month'&&!el.value)f.month=todayISO().slice(0,7);clRefresh()});
+document.addEventListener('input',e=>{const el=e.target;if(el?.classList?.contains('cl-ac-in')){clAcShow(el);if(!el.value.trim()&&el.dataset.ack!=='form'){clAcPick(el,'')}else if(el.dataset.ack==='form'){clDraft=null;const z=$('clFormZone'),c=$('clFormCity');if(z)z.textContent='—';if(c)c.textContent='—'}}});
+document.addEventListener('focusin',e=>{if(e.target?.classList?.contains('cl-ac-in'))clAcShow(e.target)});
+document.addEventListener('focusout',e=>{if(e.target?.classList?.contains('cl-ac-in')){const l=e.target.parentElement.querySelector('.cl-ac-list');setTimeout(()=>l&&l.classList.add('hidden'),150)}});
+document.addEventListener('mousedown',e=>{const it=e.target.closest?.('.cl-ac-item');if(!it)return;e.preventDefault();clAcPick(it.closest('.cl-ac').querySelector('.cl-ac-in'),it.dataset.cid)});
+document.addEventListener('keydown',e=>{const el=e.target;if(!el?.classList?.contains('cl-ac-in'))return;const l=el.parentElement.querySelector('.cl-ac-list'),items=[...l.querySelectorAll('.cl-ac-item')];if(!items.length||l.classList.contains('hidden'))return;
+ let i=items.findIndex(x=>x.classList.contains('act'));
+ if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();items[i]?.classList.remove('act');i=(i+(e.key==='ArrowDown'?1:-1)+items.length)%items.length;items[i].classList.add('act');items[i].scrollIntoView({block:'nearest'})}
+ else if(e.key==='Enter'){e.preventDefault();clAcPick(el,items[Math.max(0,i)].dataset.cid)}else if(e.key==='Escape')l.classList.add('hidden')});
+
+/* ---------- hook into navigation + page renderer (no other code touched) ---------- */
+const _clNav=window.navConfig;
+window.navConfig=function(){
+ const items=_clNav();if(isManagement())return items;
+ const entry=isOps()?['complaints','⚠','Complaints Log']:['mycomplaints','⚠','Complaints Log'],before=isOps()?'reports':'myaccount',i=items.findIndex(x=>x[0]===before);
+ items.splice(i<0?items.length:i,0,entry);return items;
+};
+const _clRender=window.renderPage;
+window.renderPage=function(){
+ if(currentPage==='complaints'&&isOps()){$('topTitle').textContent='Complaints Log';$('topSubtitle').textContent='Customer complaints — dashboard, log and actions';$('page').innerHTML=clOpsPage();return}
+ if(currentPage==='mycomplaints'&&!isOps()&&!isManagement()){$('topTitle').textContent='Complaints Log';$('topSubtitle').textContent='Complaints for your zone (view only)';$('page').innerHTML=clSalesPage();return}
+ const out=_clRender.apply(this,arguments);
+ if(currentPage==='team'&&isOps()){clLoad();$('page')?.insertAdjacentHTML('beforeend',`<div id="clOptionsBox" style="margin-top:16px">${clOptionsPanel()}</div>`)}
+ return out;
+};
+})();
+
+
 
 function exportVisits(visits,filename){let rows=[['Date','Salesperson','Employee ID','Zone','Customer','Customer Type','Purpose','Order Count','Amount Collected','Follow-up Date','Next Step','Remarks'],...visits.map(v=>{let c=customerById(v.customerId),p=personById(v.personId);return [v.date,p?.name,p?.id,p?.zone,c?.name,c?.created===v.date?'New':'Existing',v.purpose,v.orderCount||'',v.amount||'',v.followUpDate||'',v.nextStep||'',v.remarks||'']})];exportCSV(filename,rows)}
 function exportCSV(filename,rows){let table='<table>'+rows.map((r,i)=>'<tr>'+r.map(v=>'<'+(i===0?'th':'td')+'>'+String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</'+(i===0?'th':'td')+'>').join('')+'</tr>').join('')+'</table>';let workbook='<html><head><meta charset="UTF-8"></head><body>'+table+'</body></html>';let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([workbook],{type:'application/vnd.ms-excel;charset=utf-8;'}));a.download=filename.replace(/\.csv$/i,'.xls');a.click();URL.revokeObjectURL(a.href);toast('Excel-compatible workbook prepared.')}
