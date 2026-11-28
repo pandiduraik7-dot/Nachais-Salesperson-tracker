@@ -590,14 +590,56 @@ function showExpenseClaimModal(existing=null){
 }
 function createExpenseClaimPdf(claim){
  if(!claim)return null;if(!window.jspdf?.jsPDF){toast('PDF library did not load. Check your internet connection and refresh the portal.');return null}
- const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'}),p=personById(claim.personId),visits=claimVisits(claim),total=expenseTotal(claim),advance=expenseAmount(claim.advance);
- try{const logo=$('loginLogo');if(logo?.src?.startsWith('data:image/'))doc.addImage(logo.src,'PNG',10,8,18,18)}catch(e){}
- doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('Nachias Fashion Private Limited',105,13,{align:'center'});doc.setFontSize(10);doc.text('Marketing Expense Report (ODW Trip)',105,19,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(`Date: ${fmtDate(claim.reportDate)}`,155,27);doc.setDrawColor(30);doc.rect(10,31,190,20);doc.setFont('helvetica','bold');doc.text('General Details',105,36,{align:'center'});doc.setFont('helvetica','normal');doc.text(`Sales Executive: ${p?.name||''}`,13,43);doc.text(`Zone: ${claim.zone||p?.zone||''}`,140,43);doc.text(`Areas Visited: ${claim.areas||''}`,13,49,{maxWidth:182});
- doc.rect(10,54,190,17);doc.setFont('helvetica','bold');doc.text('Trip Details',105,59,{align:'center'});doc.setFont('helvetica','normal');doc.text(`Start Date: ${fmtDate(claim.startDate)}`,14,66);doc.text(`End Date: ${fmtDate(claim.endDate)}`,70,66);doc.text(`No. of Days: ${claimDays(claim)}`,140,66);
- doc.autoTable({startY:75,head:[['Sl No.','Travel Associates / Companions','Permissible Allowances']],body:[[ '1',claim.companions||[claim.companion1,claim.companion2].filter(Boolean).join(', ')||'—',`Stay: ${pdfMoney(claim.stayExpense)}\nOutstation: ${pdfMoney(claim.outstationAllowancePermitted)}\nTransport: ${pdfMoney(claim.transportAllowance)}\nOthers: ${pdfMoney(claim.allowanceOthers)}`]],theme:'grid',styles:{font:'helvetica',fontSize:7,cellPadding:2,overflow:'linebreak',valign:'middle',lineColor:[190,190,190],lineWidth:.15},headStyles:{fillColor:[220,220,220],textColor:[0,0,0],fontStyle:'bold',valign:'middle'},columnStyles:{0:{cellWidth:15},1:{cellWidth:80},2:{cellWidth:95}},margin:{left:10,right:10}});
- let y=(doc.lastAutoTable?.finalY||100)+5;doc.autoTable({startY:y,head:[['Sl No.','Description','Amount (Rs.)','Notes']],body:[['1','Bus Fare',pdfMoney(claim.busFare),claim.busNotes||''],['2','Local Transportation (Cab/Auto/Bus/Bike)',pdfMoney(claim.localTransport),claim.localNotes||''],['3','Room Rent',pdfMoney(claim.roomRent),claim.roomNotes||''],['4','Outstation Allowance',pdfMoney(claim.outstationAllowance),claim.outNotes||''],['5','Car and Driver Allowance',pdfMoney(claim.carDriver),claim.carNotes||''],['6','Other Expenses',pdfMoney(claim.otherExpenses),claim.otherNotes||'']],foot:[['','','Total Expenses',pdfMoney(total)]],theme:'grid',styles:{font:'helvetica',fontSize:7,cellPadding:2,overflow:'linebreak',valign:'middle',lineColor:[190,190,190],lineWidth:.15},headStyles:{fillColor:[220,220,220],textColor:[0,0,0],fontStyle:'bold',valign:'middle'},footStyles:{fillColor:[245,245,245],textColor:[0,0,0],fontStyle:'bold'},columnStyles:{0:{cellWidth:13,halign:'center'},1:{cellWidth:83},2:{cellWidth:35,halign:'right'},3:{cellWidth:59}},margin:{left:10,right:10}});
- y=(doc.lastAutoTable?.finalY||180)+5;doc.autoTable({startY:y,head:[['Advance Received from Office (Rs.)','Total Expenses (Rs.)','Balance (Rs.)','Order Generated (Pcs)','Payment Collected (Rs.)']],body:[[pdfMoney(advance),pdfMoney(total),pdfMoney(advance-total),String(claimOrders(claim)),pdfMoney(claimPayments(claim))]],theme:'grid',styles:{font:'helvetica',fontSize:7,cellPadding:2,overflow:'linebreak',valign:'middle',lineColor:[190,190,190],lineWidth:.15},headStyles:{fillColor:[220,220,220],textColor:[0,0,0],fontStyle:'bold',valign:'middle'},margin:{left:10,right:10}});
- y=(doc.lastAutoTable?.finalY||200)+6;doc.setFontSize(8);doc.text(`Expenses closed on: ${claim.closedOn?fmtDate(claim.closedOn):'________________'}`,12,y);y+=9;doc.setFont('helvetica','bold');doc.text('NOTE: After account closing, balance amount has to be paid back to the company account.',12,y,{maxWidth:185});y+=18;const sigBlocks=[{x1:12,x2:52,cx:32,top:'Submitted by',bottom:'(Sales Executive)'},{x1:59,x2:99,cx:79,top:'SOE',bottom:'(Sign)'},{x1:105,x2:145,cx:125,top:'Approved by',bottom:'(Sales Coordinator)'},{x1:151,x2:191,cx:171,top:'Verified by',bottom:'(Accounts)'}];doc.setDrawColor(70);doc.setLineWidth(.25);doc.setFont('helvetica','normal');doc.setFontSize(6.5);sigBlocks.forEach(b=>{doc.line(b.x1,y,b.x2,y);doc.text(b.top,b.cx,y+4.5,{align:'center'});doc.text(b.bottom,b.cx,y+8.5,{align:'center'});});
+ const {jsPDF}=window.jspdf,p=personById(claim.personId),total=expenseTotal(claim),advance=expenseAmount(claim.advance);
+ let logo=null;try{const l=$('loginLogo');if(l?.src?.startsWith('data:image/'))logo=l.src}catch(e){}
+ const companions=claim.companions||[claim.companion1,claim.companion2].filter(Boolean).join(', ')||'—';
+ const SIG_Y=275; // signature lines always sit at the bottom of the page
+ // Build the page at a given scale; the largest scale whose content ends above the signatures is used, so the report fills one full page.
+ const build=(fs,pad)=>{
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'}),L=12,W=186,R=L+W;
+  const tbl={theme:'grid',styles:{font:'helvetica',fontSize:fs,cellPadding:{top:pad,bottom:pad,left:2.6,right:2.6},overflow:'linebreak',valign:'middle',lineColor:[170,170,170],lineWidth:.2,textColor:[25,25,25]},
+   headStyles:{fillColor:[220,220,220],textColor:[0,0,0],fontStyle:'bold',valign:'middle',fontSize:fs},margin:{left:L,right:210-R},pageBreak:'avoid'};
+  if(logo){try{doc.addImage(logo,'PNG',L,9,22,22,'nachiasLogo','FAST')}catch(e){}}
+  doc.setTextColor(0);doc.setFont('helvetica','bold');doc.setFontSize(17);doc.text('Nachias Fashion Private Limited',105,17,{align:'center'});
+  doc.setFontSize(12.5);doc.text('Marketing Expense Report (ODW Trip)',105,25,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(fs+0.5);doc.text(`Date: ${fmtDate(claim.reportDate)}`,R,34,{align:'right'});
+  const lh=fs*0.42+1.6; // line height in mm for the body font
+  // General details — box height grows with the areas list so text never crosses the border
+  let y=38;doc.setFontSize(fs+0.5);const areas=doc.splitTextToSize(`Areas Visited: ${claim.areas||''}`,W-8);
+  const gH=10+lh+2+areas.length*lh+3;doc.setDrawColor(60);doc.setLineWidth(.3);doc.rect(L,y,W,gH);
+  doc.setFont('helvetica','bold');doc.text('General Details',105,y+6.5,{align:'center'});doc.setFont('helvetica','normal');
+  doc.text(`Sales Executive: ${p?.name||''}`,L+4,y+8+lh+1);doc.text(`Zone: ${claim.zone||p?.zone||''}`,L+128,y+8+lh+1);
+  areas.forEach((t,i)=>doc.text(t,L+4,y+8+lh+1+lh+2+i*lh));y+=gH+4;
+  // Trip details
+  const tH=10+lh+4;doc.rect(L,y,W,tH);doc.setFont('helvetica','bold');doc.text('Trip Details',105,y+6.5,{align:'center'});doc.setFont('helvetica','normal');
+  doc.text(`Start Date: ${fmtDate(claim.startDate)}`,L+4,y+8+lh+1);doc.text(`End Date: ${fmtDate(claim.endDate)}`,L+68,y+8+lh+1);doc.text(`No. of Days: ${claimDays(claim)}`,L+128,y+8+lh+1);y+=tH+5;
+  doc.autoTable({...tbl,startY:y,head:[['Sl No.','Travel Associates / Companions','Permissible Allowances']],
+   body:[['1',companions,`Stay: ${pdfMoney(claim.stayExpense)}\nOutstation: ${pdfMoney(claim.outstationAllowancePermitted)}\nTransport: ${pdfMoney(claim.transportAllowance)}\nOthers: ${pdfMoney(claim.allowanceOthers)}`]],
+   columnStyles:{0:{cellWidth:16,halign:'center'},1:{cellWidth:80},2:{cellWidth:W-96}}});
+  y=doc.lastAutoTable.finalY+5;
+  doc.autoTable({...tbl,startY:y,head:[['Sl No.','Description','Amount (Rs.)','Notes']],
+   body:[['1','Bus Fare',pdfMoney(claim.busFare),claim.busNotes||''],['2','Local Transportation (Cab/Auto/Bus/Bike)',pdfMoney(claim.localTransport),claim.localNotes||''],['3','Room Rent',pdfMoney(claim.roomRent),claim.roomNotes||''],['4','Outstation Allowance',pdfMoney(claim.outstationAllowance),claim.outNotes||''],['5','Car and Driver Allowance',pdfMoney(claim.carDriver),claim.carNotes||''],['6','Other Expenses',pdfMoney(claim.otherExpenses),claim.otherNotes||'']],
+   foot:[['','','Total Expenses',pdfMoney(total)]],footStyles:{fillColor:[240,240,240],textColor:[0,0,0],fontStyle:'bold',fontSize:fs},
+   columnStyles:{0:{cellWidth:16,halign:'center'},1:{cellWidth:80},2:{cellWidth:36,halign:'right'},3:{cellWidth:W-132}},
+   didParseCell:d=>{if(d.section==='head'&&d.column.index===2)d.cell.styles.halign='right';if(d.section==='foot'&&d.column.index===2)d.cell.styles.halign='right'}});
+  y=doc.lastAutoTable.finalY+5;
+  doc.autoTable({...tbl,startY:y,head:[['Advance Received from Office (Rs.)','Total Expenses (Rs.)','Balance (Rs.)','Order Generated (Pcs)','Payment Collected (Rs.)']],
+   body:[[pdfMoney(advance),pdfMoney(total),pdfMoney(advance-total),String(claimOrders(claim)),pdfMoney(claimPayments(claim))]]});
+  y=doc.lastAutoTable.finalY+lh+4;doc.setFont('helvetica','normal');doc.setFontSize(fs+0.5);
+  doc.text(`Expenses closed on: ${claim.closedOn?fmtDate(claim.closedOn):'________________'}`,L+1,y);y+=lh+4;
+  doc.setFont('helvetica','bold');const note=doc.splitTextToSize('NOTE: After account closing, balance amount has to be paid back to the company account.',W-2);
+  note.forEach((t,i)=>doc.text(t,L+1,y+i*lh));y+=(note.length-1)*lh;
+  // signatures pinned to the bottom of the page
+  const gap=6,bw=(W-3*gap)/4,sig=[['Submitted by','(Sales Executive)'],['SOE','(Sign)'],['Approved by','(Sales Coordinator)'],['Verified by','(Accounts)']];
+  doc.setDrawColor(70);doc.setLineWidth(.3);doc.setFont('helvetica','normal');doc.setFontSize(fs);
+  sig.forEach(([a,b],i)=>{const x1=L+i*(bw+gap),cx=x1+bw/2;doc.line(x1,SIG_Y,x1+bw,SIG_Y);doc.text(a,cx,SIG_Y+5.5,{align:'center'});doc.text(b,cx,SIG_Y+10.5,{align:'center'})});
+  return {doc,end:y,pages:doc.internal.getNumberOfPages()};
+ };
+ let best=null;
+ for(const [fs,pad] of [[11.5,5.2],[11.5,4.5],[11,4.2],[11,3.6],[11,3],[10.5,2.6],[10,2.2],[9.5,2],[9,1.7],[8.5,1.5]]){
+  const r=build(fs,pad);best=r;if(r.pages===1&&r.end<=SIG_Y-14)break;
+ }
+ const doc=best.doc;
  return {doc,blob:doc.output('blob'),filename:`NACHIAS_Expense_Claim_${claim.startDate}_${claim.personId}.pdf`};
 }
 function triggerPdfDownload(out){if(!out)return;const url=URL.createObjectURL(out.blob),a=document.createElement('a');a.href=url;a.download=out.filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000)}
